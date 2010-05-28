@@ -18,8 +18,7 @@ function love.load()
 	--	spawn_cloud(math.random(-100, 900), math.random(-100, 700), 80 + math.random(0, 50))
 	--end
 
-	love.graphics.setColor(255, 255, 255, 200)
-	love.graphics.setColorMode("modulate")
+	love.graphics.setColor(255, 255, 255)
 	
 	--love.audio.play(music, 0)
 	
@@ -83,7 +82,8 @@ end
 
 function new_client()
 	client = {}
-	
+	body = love.graphics.newImage("banana.jpg")
+        
 	-- metatable
 	mt = {}
 	function mt:__index(id)
@@ -107,6 +107,8 @@ function new_client()
 	-- draw client
 	function client:draw()
 		-- TODO: Draw some fancy stuff!
+                love.graphics.setColor(255,255,255)
+                love.graphics.draw(body,client.synced_vars.x,client.synced_vars.y,0,0.25)
 	end
 	
 	return client
