@@ -1,4 +1,5 @@
 function love.load()
+	love.keyboard.setKeyRepeat(1)
 	
 	-- The amazing music.
 	--music = love.audio.newMusic("prondisk.xm")
@@ -13,13 +14,7 @@ function love.load()
 	-- Set the background color to soothing pink.
 	love.graphics.setBackgroundColor(0xff, 0xf1, 0xf7)
 	
-	-- Spawn some clouds.
-	--for i=1,5 do
-	--	spawn_cloud(math.random(-100, 900), math.random(-100, 700), 80 + math.random(0, 50))
-	--end
-	
 	love.graphics.setColor(255, 255, 255, 200)
-	love.graphics.setColorMode("modulate")
 	
 	--love.audio.play(music, 0)
 	
@@ -28,6 +23,10 @@ function love.load()
 	love.graphics.setFont(font)
 	
 	--------------
+	
+	remote_clients = {}
+	local_client = new_client()
+	
 	clients = {}
 	clients[1] = new_client()
 	
@@ -63,7 +62,7 @@ function love.draw()
 	love.graphics.setColor(20, 20, 20);
 	i = {0, 1, 2, 3}
 	for k,v in ipairs(i) do
-		love.graphics.print(clients[1].x, k*10+100, k*20+100)
+		love.graphics.print(local_client.x, k*10+100, k*20+100)
 	end
 end
 
@@ -74,6 +73,19 @@ function love.keypressed(k)
 
 	if k == "r" then
 		love.filesystem.load("main.lua")()
+	end
+	
+	-- control our local client
+	if k == "left" then
+		local_client.x = local_client.x - 10
+	elseif k == "right" then
+		local_client.x = local_client.x + 10
+	end
+	
+	if k == "up" then
+		local_client.y = local_client.y + 10
+	elseif k == "down" then
+		local_client.y = local_client.y - 10
 	end
 end
 
@@ -89,7 +101,10 @@ function new_client()
 	function mt:__index(id)
 		return self.synced_vars[id]
 	end
-	setmetatable(client, mt)
+	function mt:__newindex(id, val)
+		self.synced_vars[id] = val
+	end
+	
 	
 	-- variables that should be synced via the network
 	client.synced_vars = {x = 0, y = 0}
@@ -108,6 +123,8 @@ function new_client()
 	function client:draw()
 		-- TODO: Draw some fancy stuff!
 	end
+	
+	setmetatable(client, mt)
 	
 	return client
 end
