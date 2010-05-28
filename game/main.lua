@@ -29,12 +29,13 @@ function love.update(dt)
 	--end
 	
 	clients[1]:update(dt)
+        local_client:update(dt) 
 	
 end
 
 function love.draw()
         local_client:draw()
-	clients[1]:draw()
+	--clients[1]:draw()
 	
 	-- Debug text
 	love.graphics.setColor(20, 20, 20);
@@ -62,9 +63,9 @@ function love.keypressed(k)
 	end
 	
 	if k == "up" then
-		local_client.y = local_client.y + 10
-	elseif k == "down" then
 		local_client.y = local_client.y - 10
+	elseif k == "down" then
+		local_client.y = local_client.y + 10
 	end
 end
 
@@ -110,7 +111,7 @@ function new_client()
 	function client:draw()
 		-- TODO: Draw some fancy stuff!
                 love.graphics.setColor(255,255,255)
-                love.graphics.draw(body, client.x, client.y,0,0.25)
+                love.graphics.draw(self.body, self.x, self.y,0,0.25)
 	end
 	
 	setmetatable(client, mt)
