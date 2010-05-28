@@ -17,7 +17,7 @@ function love.load()
 	--for i=1,5 do
 	--	spawn_cloud(math.random(-100, 900), math.random(-100, 700), 80 + math.random(0, 50))
 	--end
-	
+
 	love.graphics.setColor(255, 255, 255, 200)
 	love.graphics.setColorMode("modulate")
 	
