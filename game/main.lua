@@ -1,34 +1,58 @@
+function vec2(x,y)
+  tbl = {x = x, y = y}
+  
+  return tbl
+end
+
 function love.load()
 	love.keyboard.setKeyRepeat(1)
+        settings = { size = vec2(800,600), fullscreen = false}
 
 	-- Set the background color to soothing pink.
+        love.graphics.setMode(settings.size.x, settings.size.y, settings.fullscreen, true, 0)
 	love.graphics.setBackgroundColor(0xff, 0xf1, 0xf7)
 	
 	love.graphics.setColor(255, 255, 255, 200)
 	font = love.graphics.newFont(love._vera_ttf, 10)
 	love.graphics.setFont(font)
 	
+        --------------
+        world = love.physics.newWorld(settings.size.x, settings.size.y)
+        world:setGravity(0, 200)
+        
+        -- create scenery
+        scene_objects = {}
+        addbox(200,200,75,75)
+        addbox(50,settings.size.y-90,75,75)
+        addbox(settings.size.x/2,settings.size.y-15,settings.size.x,15)
 	--------------
 	
 	remote_clients = {}
-	local_client = new_client()
+	local_client = new_client("d.75.jpg")
 	
 	clients = {}
-	clients[1] = new_client()
-	
+	--clients[1] = new_client("d.75.jpg")
+end
+
+function addbox(x,y,w,h)
+    local t = {}
+    --t.b = ground
+    t.box = { body,shape}
+    t.box.body = love.physics.newBody(world, x, y)
+    t.box.shape = love.physics.newRectangleShape(t.box.body, 0, 0, w,h)
+    function t:draw()
+        love.graphics.polygon("line", t.box.shape:getPoints())
+    end
+
+    table.insert(scene_objects, t)
 end
 
 function love.update(dt)
-	--try_spawn_cloud(dt)
-	
-	--nekochan:update(dt)
-	
-	-- Update clouds.
-	--for k, c in ipairs(clouds) do
-	--	c.x = c.x + c.s * dt
-	--end
-	
-	clients[1]:update(dt)
+        -- update world
+        world:update(dt)
+        
+        -- update clients
+	--clients[1]:update(dt)
         local_client:update(dt) 
 	
 end
@@ -44,6 +68,12 @@ function love.draw()
 		love.graphics.print(local_client.x, k+100, k*20+100)
                 love.graphics.print(local_client.y, k+100 + 10*#(tostring(local_client.x)), k*20+100)
 	end
+        
+        for k,v in pairs(scene_objects) do
+            v:draw()
+        end
+        
+        love.graphics.print(local_client.body:getX() .. "," .. local_client.body:getY() ,200,200)
 end
 
 function love.keypressed(k)
@@ -57,16 +87,21 @@ function love.keypressed(k)
 	
 	-- control our local client
 	if k == "left" then
-		local_client.x = local_client.x - 10
+		x,y = local_client.body:getWorldCenter()
+                local_client.body:applyForce(-5000,0,x,y)
+                
 	elseif k == "right" then
-		local_client.x = local_client.x + 10
+		x,y = local_client.body:getWorldCenter()
+                local_client.body:applyForce(5000,0,x,y)
 	end
 	
 	if k == "up" then
-		local_client.y = local_client.y - 10
-	elseif k == "down" then
-		local_client.y = local_client.y + 10
-	end
+                x,y = local_client.body:getWorldCenter()
+                local_client.body:applyForce(0,-5000,x,y)
+        end
+	--elseif k == "down" then
+	--	-- ?
+	--end
 end
 
 -----------
@@ -78,9 +113,14 @@ function new_syncvar(value)
 end
 
 
-function new_client()
+function new_client(name)
 	client = {}
-	client.body = love.graphics.newImage("banana.jpg")
+	client.img = love.graphics.newImage(name)
+        local w = client.img:getWidth()
+        local h = client.img:getHeight()
+        client.body = love.physics.newBody(world, 300, 320,4)
+        client.shape = love.physics.newRectangleShape(client.body,0,0, w, h)
+        client.body:setAngularDamping(0.5)
         
 	-- metatable
 	mt = {}
@@ -104,6 +144,8 @@ function new_client()
 	
 	-- update client
 	function client:update(dt)
+                self.x = self.body:getX()
+                self.y = self.body:getY()
 		self:sync_vars(dt)
 	end
 	
@@ -111,7 +153,11 @@ function new_client()
 	function client:draw()
 		-- TODO: Draw some fancy stuff!
                 love.graphics.setColor(255,255,255)
-                love.graphics.draw(self.body, self.x, self.y,0,0.25)
+                love.graphics.draw(self.img, self.x-w/2, self.y-h/2)
+                
+                -- draw bounding box
+                love.graphics.setColor(0,0,0)
+                love.graphics.polygon("line", self.shape:getPoints())
 	end
 	
 	setmetatable(client, mt)
