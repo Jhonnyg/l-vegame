@@ -1,7 +1,7 @@
 function love.load()
 	
 	-- Set the background color to soothing pink.
-	love.graphics.setBackgroundColor(0xff, 0xf1, 0xf7)
+	love.graphics.setBackgroundColor(110, 110, 110)
 	
 	love.graphics.setColor(255, 255, 255, 200)
 	font = love.graphics.newFont("CONSOLA.TTF", 11)--love._vera_ttf, 10)
@@ -10,6 +10,8 @@ function love.load()
 	widgets = {}
 	widgets[1] = new_button(300, 200, 200, 80, "Quit", function () love.event.push("q") end )
 	widgets['inputbox'] = new_input(300, 300, 200, function () love.event.push("q") end )
+	
+	widgetlook = love.graphics.newImage("uilook.png")
 	
 	hover = 0
 	
@@ -132,8 +134,10 @@ function new_button(px, py, w, h, label, onClicked)
 		
 		love.graphics.rectangle('fill', self.x, self.y, self.w, self.h)
 		
+		love.graphics.setColor(0xee, 0xee, 0xee)
+		love.graphics.print(self.label, self.x + self.w / 2 - #self.label * 3 + 1, self.y + self.h / 2 + 3 + 1)
 		love.graphics.setColor(0x11, 0x11, 0x11)
-		love.graphics.print(self.label, self.x + self.w / 2, self.y + self.h / 2)
+		love.graphics.print(self.label, self.x + self.w / 2 - #self.label * 3, self.y + self.h / 2 + 3)
 	end
 	
 	return widget
@@ -176,17 +180,22 @@ function new_input(px, py, w, onEnter)
 	end
 	
 	function widget:draw()
-		if self.active then
+		--[[if self.active then
 			love.graphics.setColor(0x44, 0xff, 0x44)
 		else
 			love.graphics.setColor(0xff, 0x44, 0x44)
 		end
 		
 		love.graphics.rectangle('fill', self.x, self.y, self.w, self.h)
+		]]
+		love.graphics.setColor(0xff, 0xff, 0xff)
+		love.graphics.draws(widgetlook, self.x, self.y, self.w, self.h)
 		
+		local outputstr = string.sub(self.value .. "|", -widget.max_visible)
+		love.graphics.setColor(0xee, 0xee, 0xee)
+		love.graphics.print(outputstr, self.x + 3, self.y + self.h / 2 + 4)
 		love.graphics.setColor(0x11, 0x11, 0x11)
-		local outputstr = self.value .. "|"
-		love.graphics.print(string.sub(outputstr, -widget.max_visible), self.x + 2, self.y + self.h / 2 + 3)
+		love.graphics.print(outputstr, self.x + 2, self.y + self.h / 2 + 3)
 	end
 	
 	return widget
