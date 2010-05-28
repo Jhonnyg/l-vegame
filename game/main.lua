@@ -1,3 +1,7 @@
+--------------
+-- globals
+clients = {}
+
 function love.load()
 	
 	-- The amazing music.
@@ -23,6 +27,13 @@ function love.load()
 	
 	--love.audio.play(music, 0)
 	
+	--font = love.graphics.newFont("ARIAL.TTF", 12)
+	font = love.graphics.newFont(love._vera_ttf, 10)
+	love.graphics.setFont(font)
+	
+	
+	clients[1] = new_client()
+	
 end
 
 function love.update(dt)
@@ -34,6 +45,8 @@ function love.update(dt)
 	--for k, c in ipairs(clouds) do
 	--	c.x = c.x + c.s * dt
 	--end
+	
+	clients[1].update(dt)
 	
 end
 
@@ -47,11 +60,36 @@ function love.draw()
 	
 	--nekochan:render()
 	
+	clients[1].draw()
+	love.graphics.print("aoeoaeao", 100, 100)
 end
 
 function love.keypressed(k)
+	if key == "escape" then
+		love.event.push("q")
+	end
+
 	if k == "r" then
 		love.filesystem.load("main.lua")()
 	end
 end
+
+-----------
+-- Client object
+
+
+function new_client()
+	client = {}
+	
+	function client.update(dt)
+		print(dt)
+	end
+	
+	function client.draw()
+		print("SUP")
+	end
+	
+	return client
+end
+
 
