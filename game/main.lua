@@ -71,6 +71,11 @@ end
 -----------
 -- Client object
 
+function new_syncvar(value)
+	var = {value = value, dirty = false}
+	return var
+end
+
 
 function new_client()
 	client = {}
@@ -79,15 +84,17 @@ function new_client()
 	-- metatable
 	mt = {}
 	function mt:__index(id)
-		return self.synced_vars[id]
+		return self.synced_vars[id].value
 	end
 	function mt:__newindex(id, val)
-		self.synced_vars[id] = val
+		self.synced_vars[id].dirty = true
+		self.synced_vars[id].value = val
 	end
 	
 	
 	-- variables that should be synced via the network
-	client.synced_vars = {x = 0, y = 0}
+	client.synced_vars = {x = new_syncvar(0),
+	                      y = new_syncvar(0)}
 	
 	-- sync variables via LUBE
 	function client:sync_vars(dt)
@@ -103,7 +110,7 @@ function new_client()
 	function client:draw()
 		-- TODO: Draw some fancy stuff!
                 love.graphics.setColor(255,255,255)
-                love.graphics.draw(client.body,client.synced_vars.x,client.synced_vars.y,0,0.25)
+                love.graphics.draw(body, client.x, client.y,0,0.25)
 	end
 	
 	setmetatable(client, mt)
