@@ -76,6 +76,19 @@ function love.draw()
         love.graphics.print(local_client.body:getX() .. "," .. local_client.body:getY() ,200,200)
 end
 
+function move_client(dir,f)
+    x,y = local_client.body:getWorldCenter()
+    if dir == "left" then
+        local_client.body:applyForce(-f,0,x,y)
+    end
+    if dir == "right" then
+        local_client.body:applyForce(f,0,x,y)
+    end
+    if dir == "up" then
+        local_client.body:applyForce(0,-f,x,y)
+    end
+end
+
 function love.keypressed(k)
 	if k == "escape" then
 		love.event.push("q")
@@ -84,24 +97,8 @@ function love.keypressed(k)
 	if k == "r" then
 		love.filesystem.load("main.lua")()
 	end
-	
-	-- control our local client
-	if k == "left" then
-		x,y = local_client.body:getWorldCenter()
-                local_client.body:applyForce(-5000,0,x,y)
-                
-	elseif k == "right" then
-		x,y = local_client.body:getWorldCenter()
-                local_client.body:applyForce(5000,0,x,y)
-	end
-	
-	if k == "up" then
-                x,y = local_client.body:getWorldCenter()
-                local_client.body:applyForce(0,-5000,x,y)
-        end
-	--elseif k == "down" then
-	--	-- ?
-	--end
+        
+        move_client(k,5000)
 end
 
 -----------
