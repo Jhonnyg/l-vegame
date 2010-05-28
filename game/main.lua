@@ -1,7 +1,3 @@
---------------
--- globals
-clients = {}
-
 function love.load()
 	
 	-- The amazing music.
@@ -31,7 +27,8 @@ function love.load()
 	font = love.graphics.newFont(love._vera_ttf, 10)
 	love.graphics.setFont(font)
 	
-	
+	--------------
+	clients = {}
 	clients[1] = new_client()
 	
 end
@@ -46,7 +43,7 @@ function love.update(dt)
 	--	c.x = c.x + c.s * dt
 	--end
 	
-	clients[1].update(dt)
+	clients[1]:update(dt)
 	
 end
 
@@ -60,12 +57,18 @@ function love.draw()
 	
 	--nekochan:render()
 	
-	clients[1].draw()
-	love.graphics.print("aoeoaeao", 100, 100)
+	clients[1]:draw()
+	
+	-- Debug text
+	love.graphics.setColor(20, 20, 20);
+	i = {0, 1, 2, 3}
+	for k,v in ipairs(i) do
+		love.graphics.print("Hey sup?", k*10+100, k*20+100)
+	end
 end
 
 function love.keypressed(k)
-	if key == "escape" then
+	if k == "escape" then
 		love.event.push("q")
 	end
 
@@ -81,11 +84,19 @@ end
 function new_client()
 	client = {}
 	
-	function client.update(dt)
-		print(dt)
+	client.synced_vars = {x = 0, y = 0}
+	
+	function client:sync_vars(dt)
+		
 	end
 	
-	function client.draw()
+	function client:update(dt)
+		print(dt)
+		
+		self:sync_vars(dt)
+	end
+	
+	function client:draw()
 		print("SUP")
 	end
 	
