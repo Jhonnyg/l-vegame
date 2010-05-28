@@ -63,7 +63,7 @@ function love.draw()
 	love.graphics.setColor(20, 20, 20);
 	i = {0, 1, 2, 3}
 	for k,v in ipairs(i) do
-		love.graphics.print("Hey sup?", k*10+100, k*20+100)
+		love.graphics.print(clients[1].x, k*10+100, k*20+100)
 	end
 end
 
@@ -84,20 +84,29 @@ end
 function new_client()
 	client = {}
 	
+	-- metatable
+	mt = {}
+	function mt:__index(id)
+		return self.synced_vars[id]
+	end
+	setmetatable(client, mt)
+	
+	-- variables that should be synced via the network
 	client.synced_vars = {x = 0, y = 0}
 	
+	-- sync variables via LUBE
 	function client:sync_vars(dt)
-		
+		-- TODO: MAKE IT SYNC! LOL
 	end
 	
+	-- update client
 	function client:update(dt)
-		print(dt)
-		
 		self:sync_vars(dt)
 	end
 	
+	-- draw client
 	function client:draw()
-		print("SUP")
+		-- TODO: Draw some fancy stuff!
 	end
 	
 	return client
