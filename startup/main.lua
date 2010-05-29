@@ -8,10 +8,47 @@ function love.load()
 	love.graphics.setFont(font)
 	
 	widgets = {}
-	widgets[1] = new_button(300, 200, 200, 80, "Quit", function () love.event.push("q") end )
+	widgets[1] = new_button(300, 200, 200, 30, "Quit", function () love.event.push("q") end )
 	widgets['inputbox'] = new_input(300, 300, 200, function () love.event.push("q") end )
 	
 	widgetlook = love.graphics.newImage("uilook.png")
+    widgetlook:setFilter( "linear", "linear" )
+    look = { button = {} }
+    look.button.topleft = love.graphics.newQuad(0, 0, 5, 5, 256, 256)
+    look.button.topright = love.graphics.newQuad(7, 0, 5, 5, 256, 256)
+    look.button.top = love.graphics.newQuad(8, 0, 1, 5, 256, 256)
+    look.button.bottom = love.graphics.newQuad(8, 7, 1, 5, 256, 256)
+    look.button.bottomleft = love.graphics.newQuad(0, 7, 5, 5, 256, 256)
+    look.button.bottomright = love.graphics.newQuad(7, 7, 5, 5, 256, 256)
+    look.button.left = love.graphics.newQuad(0, 8, 5, 1, 256, 256)
+    look.button.right = love.graphics.newQuad(7, 8, 5, 1, 256, 256)
+    look.button.bg = love.graphics.newQuad(254, 0, 1, 255, 256, 256)
+    look.button.bginv = love.graphics.newQuad(254, 255, 1, -255, 256, 256)
+    
+    function look.button:render(x, y, w, h, push, label)
+        love.graphics.setColor(255, 255, 255)
+        if not push then
+            love.graphics.drawq( widgetlook, self.bg, x+1, y+1, 0, w-2, 1.0/256.0 * (h-2), 0, 0)
+        else
+            love.graphics.drawq( widgetlook, self.bginv, x+1, y+1, 0, w-2, -1.0/256.0 * (h-2), 0, 0)
+        end
+        
+        love.graphics.drawq( widgetlook, self.topleft, x, y, 0, 1, 1, 0, 0)
+        love.graphics.drawq( widgetlook, self.topright, x+w-5, y, 0, 1, 1, 0, 0)
+        love.graphics.drawq( widgetlook, self.bottomleft, x, y+h-5, 0, 1, 1, 0, 0)
+        love.graphics.drawq( widgetlook, self.bottomright, x+w-5, y+h-5, 0, 1, 1, 0, 0)
+        
+        love.graphics.drawq( widgetlook, self.top, x+5, y, 0, w-10, 1, 0, 0)
+        love.graphics.drawq( widgetlook, self.bottom, x+5, y+h-5, 0, w-10, 1, 0, 0)
+        
+        love.graphics.drawq( widgetlook, self.right, x+w-5, y+5, 0, 1, h-10, 0, 0)
+        love.graphics.drawq( widgetlook, self.left, x, y+5, 0, 1, h-10, 0, 0)
+        
+        love.graphics.setColor(0xee, 0xee, 0xee)
+		love.graphics.print(label, x + w / 2 - #label * 3 + 1, y + h / 2 + 3 + 1)
+		love.graphics.setColor(0x11, 0x11, 0x11)
+		love.graphics.print(label, x + w / 2 - #label * 3, y + h / 2 + 3)
+    end
 	
 	hover = 0
 	
@@ -126,18 +163,8 @@ function new_button(px, py, w, h, label, onClicked)
 	end
 	
 	function widget:draw()
-		if self.hit then
-			love.graphics.setColor(0x44, 0xff, 0x44)
-		else
-			love.graphics.setColor(0xff, 0x44, 0x44)
-		end
-		
-		love.graphics.rectangle('fill', self.x, self.y, self.w, self.h)
-		
-		love.graphics.setColor(0xee, 0xee, 0xee)
-		love.graphics.print(self.label, self.x + self.w / 2 - #self.label * 3 + 1, self.y + self.h / 2 + 3 + 1)
-		love.graphics.setColor(0x11, 0x11, 0x11)
-		love.graphics.print(self.label, self.x + self.w / 2 - #self.label * 3, self.y + self.h / 2 + 3)
+        
+        look.button:render(self.x, self.y, self.w, self.h, self.hit, self.label)
 	end
 	
 	return widget
@@ -189,7 +216,7 @@ function new_input(px, py, w, onEnter)
 		love.graphics.rectangle('fill', self.x, self.y, self.w, self.h)
 		]]
 		love.graphics.setColor(0xff, 0xff, 0xff)
-		love.graphics.draws(widgetlook, self.x, self.y, self.w, self.h)
+		--love.graphics.draws(widgetlook, self.x, self.y, self.w, self.h)
 		
 		local outputstr = string.sub(self.value .. "|", -widget.max_visible)
 		love.graphics.setColor(0xee, 0xee, 0xee)
