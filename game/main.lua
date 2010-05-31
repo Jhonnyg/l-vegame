@@ -29,28 +29,47 @@ function client_messages(data)
   print("client_messages: " .. tostring(data))
 end
 
+function new_camera()
+    camera = {}
+    camera.lookat = {x = 0
+                    ,y = 0 }
+    scroll_offset = settings.size.x / 4
+    
+    function camera:update()
+        if local_client.x < -self.lookat.x + scroll_offset then
+            self.lookat.x = -local_client.x + scroll_offset
+        elseif local_client.x > settings.size.x - self.lookat.x - scroll_offset then
+            self.lookat.x = settings.size.x-local_client.x - scroll_offset
+        end
+        
+    end
+    
+    return camera
+end
+
 function love.load()
-  love.keyboard.setKeyRepeat(1)
-  settings = { size = vec2(800,600), fullscreen = false}
+	love.keyboard.setKeyRepeat(1)
+  settings = { size = vec2(800,600), fullscreen = false, worldsize = vec2(2000,2000)}
 
-  -- Set the background color to soothing pink.
+	-- Set the background color to soothing pink.
   love.graphics.setMode(settings.size.x, settings.size.y, settings.fullscreen, true, 0)
-  love.graphics.setBackgroundColor(0xff, 0xf1, 0xf7)
-
-  love.graphics.setColor(255, 255, 255, 200)
-  font = love.graphics.newFont(love._vera_ttf, 10)
-  love.graphics.setFont(font)
-
+	love.graphics.setBackgroundColor(0xff, 0xf1, 0xf7)
+	
+	love.graphics.setColor(255, 255, 255, 200)
+	font = love.graphics.newFont(love._vera_ttf, 10)
+	love.graphics.setFont(font)
+	
   --------------
-  world = love.physics.newWorld(settings.size.x, settings.size.y)
-  world:setGravity(0, 200)
-
+  world = love.physics.newWorld(settings.worldsize.x, settings.worldsize.x)
+  world:setGravity(0, 700)
+  
   -- create scenery
   scene_objects = {}
   addbox(200,200,75,75)
   addbox(50,settings.size.y-90,75,75)
-  addbox(settings.size.x/2,settings.size.y-15,settings.size.x,15)
-  --------------
+  addbox(settings.size.x/2,settings.size.y-15,settings.size.x*5,15)
+	--------------
+	camera = new_camera()
   
   
   --------------
@@ -96,6 +115,8 @@ end
 function love.update(dt)
         -- update world
         world:update(dt)
+        -- update camera
+        camera:update(dt)
         
         if is_server then
           netserver:update(dt)
@@ -110,35 +131,19 @@ function love.update(dt)
 end
 
 function love.draw()
+        love.graphics.translate(camera.lookat.x,camera.lookat.y)
+        
         local_client:draw()
-	--clients[1]:draw()
-	
-	-- Debug text
-	love.graphics.setColor(20, 20, 20);
-	i = {0, 1, 2, 3}
-	for k,v in ipairs(i) do
-		love.graphics.print(local_client.x, k+100, k*20+100)
-                love.graphics.print(local_client.y, k+100 + 10*#(tostring(local_client.x)), k*20+100)
-	end
         
         for k,v in pairs(scene_objects) do
             v:draw()
         end
         
-        love.graphics.print(local_client.body:getX() .. "," .. local_client.body:getY() ,200,200)
-end
-
-function move_client(dir,f)
-    x,y = local_client.body:getWorldCenter()
-    if dir == "left" then
-        local_client.body:applyForce(-f,0,x,y)
-    end
-    if dir == "right" then
-        local_client.body:applyForce(f,0,x,y)
-    end
-    if dir == "up" then
-        local_client.body:applyForce(0,-f,x,y)
-    end
+        love.graphics.translate(-camera.lookat.x,-camera.lookat.y)
+        love.graphics.print("camera lookat (" .. camera.lookat.x .. " , " .. camera.lookat.y  .. ")",200,200)
+        love.graphics.print("client pos (" .. local_client.x .. " , " .. local_client.y  .. ")",200,210)
+        v_x,v_y = local_client.body:getLinearVelocity()
+        love.graphics.print("client x_v (" .. v_x .. " , " .. v_y  .. ")",200,220)
 end
 
 function love.keypressed(k)
@@ -149,12 +154,7 @@ function love.keypressed(k)
 	if k == "r" then
 		love.filesystem.load("main.lua")()
 	end
-        
-        move_client(k,5000)
 end
-
------------
--- Client object
 
 function new_syncvar(value)
 	var = {value = value, dirty = false}
@@ -167,9 +167,12 @@ function new_client(name)
 	client.img = love.graphics.newImage(name)
         local w = client.img:getWidth()
         local h = client.img:getHeight()
-        client.body = love.physics.newBody(world, 300, 320,4)
+        client.properties = {velocity_limit = 500, x_force = 250, y_impulse = 50}
+        client.body = love.physics.newBody(world, 0, 20,4)
         client.shape = love.physics.newRectangleShape(client.body,0,0, w, h)
         client.body:setAngularDamping(0.5)
+        --client.body:setLinearDamping(0.5)
+        in_air = false
         
 	-- metatable
 	mt = {}
@@ -196,6 +199,7 @@ function new_client(name)
                 self.x = self.body:getX()
                 self.y = self.body:getY()
 		self:sync_vars(dt)
+                self:move()
 	end
 	
 	-- draw client
@@ -208,6 +212,39 @@ function new_client(name)
                 love.graphics.setColor(0,0,0)
                 love.graphics.polygon("line", self.shape:getPoints())
 	end
+        
+        function client:move()
+                x,y = self.body:getWorldCenter()
+                v_x, v_y = self.body:getLinearVelocity()
+                
+                if love.keyboard.isDown("left") then
+                    if v_x > -self.properties.velocity_limit then
+                        self.body:applyForce(-self.properties.x_force,0,x,y)
+                    end
+                end
+                if love.keyboard.isDown("right") then
+                    if v_x < self.properties.velocity_limit then
+                        self.body:applyForce(self.properties.x_force,0,x,y)
+                    end
+                end
+                if love.keyboard.isDown("up") then
+                    if v_y < self.properties.velocity_limit then
+                        epsilon = 0.015
+                        if v_y == 0 then
+                            in_air = false
+                        end
+                        
+                        if v_y <= 0 + epsilon and in_air == false then
+                            in_air = true
+                            self.body:applyImpulse(0,-self.properties.y_impulse,x,y)
+                        end
+                    end
+                end
+                
+                if love.keyboard.isDown(" ") then
+                    
+                end
+        end
 	
 	setmetatable(client, mt)
 	
