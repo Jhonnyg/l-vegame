@@ -4,9 +4,27 @@ function vec2(x,y)
   return tbl
 end
 
+function new_camera()
+    camera = {}
+    camera.lookat = {x = 0
+                    ,y = 0 }
+    scroll_offset = settings.size.x / 4
+    
+    function camera:update()
+        if local_client.x < -self.lookat.x + scroll_offset then
+            self.lookat.x = -local_client.x + scroll_offset
+        elseif local_client.x > settings.size.x - self.lookat.x - scroll_offset then
+            self.lookat.x = settings.size.x-local_client.x - scroll_offset
+        end
+        
+    end
+    
+    return camera
+end
+
 function love.load()
 	love.keyboard.setKeyRepeat(1)
-        settings = { size = vec2(800,600), fullscreen = false}
+        settings = { size = vec2(800,600), fullscreen = false, worldsize = vec2(2000,2000)}
 
 	-- Set the background color to soothing pink.
         love.graphics.setMode(settings.size.x, settings.size.y, settings.fullscreen, true, 0)
@@ -17,7 +35,7 @@ function love.load()
 	love.graphics.setFont(font)
 	
         --------------
-        world = love.physics.newWorld(settings.size.x, settings.size.y)
+        world = love.physics.newWorld(settings.worldsize.x, settings.worldsize.x)
         world:setGravity(0, 200)
         
         -- create scenery
@@ -26,7 +44,9 @@ function love.load()
         addbox(50,settings.size.y-90,75,75)
         addbox(settings.size.x/2,settings.size.y-15,settings.size.x,15)
 	--------------
-	
+	camera = new_camera()
+        
+        --------------
 	remote_clients = {}
 	local_client = new_client("d.75.jpg")
 	
@@ -50,6 +70,8 @@ end
 function love.update(dt)
         -- update world
         world:update(dt)
+        -- update camera
+        camera:update(dt)
         
         -- update clients
 	--clients[1]:update(dt)
@@ -58,22 +80,17 @@ function love.update(dt)
 end
 
 function love.draw()
+        love.graphics.translate(camera.lookat.x,camera.lookat.y)
+        
         local_client:draw()
-	--clients[1]:draw()
-	
-	-- Debug text
-	love.graphics.setColor(20, 20, 20);
-	i = {0, 1, 2, 3}
-	for k,v in ipairs(i) do
-		love.graphics.print(local_client.x, k+100, k*20+100)
-                love.graphics.print(local_client.y, k+100 + 10*#(tostring(local_client.x)), k*20+100)
-	end
         
         for k,v in pairs(scene_objects) do
             v:draw()
         end
         
-        love.graphics.print(local_client.body:getX() .. "," .. local_client.body:getY() ,200,200)
+        love.graphics.translate(-camera.lookat.x,-camera.lookat.y)
+        love.graphics.print("camera lookat (" .. camera.lookat.x .. " , " .. camera.lookat.y  .. ")",200,200)
+        love.graphics.print("client pos (" .. local_client.x .. " , " .. local_client.y  .. ")",200,210)
 end
 
 function move_client(dir,f)
