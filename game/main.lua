@@ -88,6 +88,7 @@ function love.draw()
             v:draw()
         end
         
+        -- debug info
         love.graphics.translate(-camera.lookat.x,-camera.lookat.y)
         love.graphics.print("camera lookat (" .. camera.lookat.x .. " , " .. camera.lookat.y  .. ")",200,200)
         love.graphics.print("client pos (" .. local_client.x .. " , " .. local_client.y  .. ")",200,210)
