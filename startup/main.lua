@@ -4,7 +4,7 @@ function love.load()
 	love.graphics.setBackgroundColor(110, 110, 110)
 	
 	love.graphics.setColor(255, 255, 255, 200)
-	font = love.graphics.newFont("CONSOLA.TTF", 11)--love._vera_ttf, 10)
+	font = love.graphics.newFont("ProggySmall.ttf", 14)--love._vera_ttf, 10)
 	love.graphics.setFont(font)
 	
 	widgets = {}
