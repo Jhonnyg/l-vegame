@@ -36,13 +36,13 @@ function love.load()
 	
         --------------
         world = love.physics.newWorld(settings.worldsize.x, settings.worldsize.x)
-        world:setGravity(0, 200)
+        world:setGravity(0, 700)
         
         -- create scenery
         scene_objects = {}
         addbox(200,200,75,75)
         addbox(50,settings.size.y-90,75,75)
-        addbox(settings.size.x/2,settings.size.y-15,settings.size.x,15)
+        addbox(settings.size.x/2,settings.size.y-15,settings.size.x*5,15)
 	--------------
 	camera = new_camera()
         
@@ -91,18 +91,34 @@ function love.draw()
         love.graphics.translate(-camera.lookat.x,-camera.lookat.y)
         love.graphics.print("camera lookat (" .. camera.lookat.x .. " , " .. camera.lookat.y  .. ")",200,200)
         love.graphics.print("client pos (" .. local_client.x .. " , " .. local_client.y  .. ")",200,210)
+        v_x,v_y = local_client.body:getLinearVelocity()
+        love.graphics.print("client x_v (" .. v_x .. " , " .. v_y  .. ")",200,220)
 end
 
-function move_client(dir,f)
+function move_client2(dir,f)
     x,y = local_client.body:getWorldCenter()
+    epsilon = 0.0000125
+    jump_multiplier = 15
+    in_air = false
+    
     if dir == "left" then
         local_client.body:applyForce(-f,0,x,y)
+        --local_client.body:setLinearVelocity(-400,0)
     end
     if dir == "right" then
         local_client.body:applyForce(f,0,x,y)
     end
     if dir == "up" then
-        local_client.body:applyForce(0,-f,x,y)
+        v_x, v_y = local_client.body:getLinearVelocity()
+        
+        if v_y == 0 then
+            in_air = false
+        end
+        
+        if v_y == 0 and in_air == false then
+            in_air = true
+            local_client.body:applyForce(0,-f * jump_multiplier,x,y)
+        end
     end
 end
 
@@ -115,7 +131,7 @@ function love.keypressed(k)
 		love.filesystem.load("main.lua")()
 	end
         
-        move_client(k,5000)
+        --move_client(k,4000)
 end
 
 -----------
@@ -132,9 +148,12 @@ function new_client(name)
 	client.img = love.graphics.newImage(name)
         local w = client.img:getWidth()
         local h = client.img:getHeight()
+        client.properties = {velocity_limit = 500, x_force = 400, y_impulse = 50}
         client.body = love.physics.newBody(world, 300, 320,4)
         client.shape = love.physics.newRectangleShape(client.body,0,0, w, h)
         client.body:setAngularDamping(0.5)
+        --client.body:setLinearDamping(0.5)
+        in_air = false
         
 	-- metatable
 	mt = {}
@@ -161,6 +180,7 @@ function new_client(name)
                 self.x = self.body:getX()
                 self.y = self.body:getY()
 		self:sync_vars(dt)
+                self:move()
 	end
 	
 	-- draw client
@@ -173,6 +193,35 @@ function new_client(name)
                 love.graphics.setColor(0,0,0)
                 love.graphics.polygon("line", self.shape:getPoints())
 	end
+        
+        function client:move()
+                x,y = self.body:getWorldCenter()
+                v_x, v_y = self.body:getLinearVelocity()
+                
+                if love.keyboard.isDown("left") then
+                    if v_x > -self.properties.velocity_limit then
+                        self.body:applyForce(-self.properties.x_force,0,x,y)
+                    end
+                end
+                if love.keyboard.isDown("right") then
+                    if v_x < self.properties.velocity_limit then
+                        self.body:applyForce(self.properties.x_force,0,x,y)
+                    end
+                end
+                if love.keyboard.isDown("up") then
+                    if v_y < self.properties.velocity_limit then
+                        epsilon = 0.015
+                        if v_y == 0 then
+                            in_air = false
+                        end
+                        
+                        if v_y <= 0 + epsilon and in_air == false then
+                            in_air = true
+                            self.body:applyImpulse(0,-self.properties.y_impulse,x,y)
+                        end
+                    end
+                end
+        end
 	
 	setmetatable(client, mt)
 	
