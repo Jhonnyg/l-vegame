@@ -95,33 +95,6 @@ function love.draw()
         love.graphics.print("client x_v (" .. v_x .. " , " .. v_y  .. ")",200,220)
 end
 
-function move_client2(dir,f)
-    x,y = local_client.body:getWorldCenter()
-    epsilon = 0.0000125
-    jump_multiplier = 15
-    in_air = false
-    
-    if dir == "left" then
-        local_client.body:applyForce(-f,0,x,y)
-        --local_client.body:setLinearVelocity(-400,0)
-    end
-    if dir == "right" then
-        local_client.body:applyForce(f,0,x,y)
-    end
-    if dir == "up" then
-        v_x, v_y = local_client.body:getLinearVelocity()
-        
-        if v_y == 0 then
-            in_air = false
-        end
-        
-        if v_y == 0 and in_air == false then
-            in_air = true
-            local_client.body:applyForce(0,-f * jump_multiplier,x,y)
-        end
-    end
-end
-
 function love.keypressed(k)
 	if k == "escape" then
 		love.event.push("q")
@@ -130,12 +103,7 @@ function love.keypressed(k)
 	if k == "r" then
 		love.filesystem.load("main.lua")()
 	end
-        
-        --move_client(k,4000)
 end
-
------------
--- Client object
 
 function new_syncvar(value)
 	var = {value = value, dirty = false}
@@ -148,8 +116,8 @@ function new_client(name)
 	client.img = love.graphics.newImage(name)
         local w = client.img:getWidth()
         local h = client.img:getHeight()
-        client.properties = {velocity_limit = 500, x_force = 400, y_impulse = 50}
-        client.body = love.physics.newBody(world, 300, 320,4)
+        client.properties = {velocity_limit = 500, x_force = 250, y_impulse = 50}
+        client.body = love.physics.newBody(world, 0, 20,4)
         client.shape = love.physics.newRectangleShape(client.body,0,0, w, h)
         client.body:setAngularDamping(0.5)
         --client.body:setLinearDamping(0.5)
@@ -220,6 +188,10 @@ function new_client(name)
                             self.body:applyImpulse(0,-self.properties.y_impulse,x,y)
                         end
                     end
+                end
+                
+                if love.keyboard.isDown(" ") then
+                    
                 end
         end
 	
