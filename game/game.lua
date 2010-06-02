@@ -365,8 +365,16 @@ function new_client(name, is_remote)
       self.body:setX(self.x)
       self.body:setY(self.y)
     else
-      self.x = self.body:getX()
-      self.y = self.body:getY()
+      local x = self.body:getX()
+      local y = self.body:getY()
+      if not (x == self.x) then
+        self.x = x
+      end
+      
+      if not (y == self.y) then
+        self.y = y
+      end
+      
       self:sync_vars(dt)
       self:move()
     end
@@ -393,6 +401,7 @@ function new_client(name, is_remote)
     x,y = self.body:getWorldCenter()
     v_x, v_y = self.body:getLinearVelocity()
 
+    -- TODO: This should be moved to game.keypushed or something like that (ie. to a state action/function).
     if love.keyboard.isDown("escape") then
         self:clean_quit()
         love.event.push("q")
