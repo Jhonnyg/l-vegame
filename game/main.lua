@@ -8,6 +8,10 @@ end
 
 is_server = false
 
+function t_dvar(var)
+  return ("'" .. tostring(var) .. "' (" .. type(var) .. ")")
+end
+
 function server_messages(data_in, id)
   data = lube.bin:unpack(data_in)
   msg = data.msg
@@ -19,7 +23,7 @@ function server_messages(data_in, id)
       else
         netserver:send(lube.bin:pack({msg = 'NewUIDLocal', id = client_uid}), i) -- Notify the new client of his own id
         for tuid = 1,(client_uid-1) do
-          netserver:send(lube.bin:pack({msg = 'NewUID', id = client_uid}), i) -- Notify the new client of all other/previous clients
+          netserver:send(lube.bin:pack({msg = 'NewUID', id = tuid}), i) -- Notify the new client of all other/previous clients
         end
       end
     end
@@ -33,14 +37,12 @@ function server_messages(data_in, id)
     varid = data.var
     value = data.value
     
-    print("Server needs to sync var: " .. tostring(varid) .. " with value: " .. tostring(value) .. " for client: " .. tostring(clientid))
+    print("Server needs to sync var: " .. t_dvar(varid) .. " with value: " .. t_dvar(value) .. " for client: " .. t_dvar(clientid))
     
-    data = {msg = 'SyncVarClient', id = clientid, var = varid, value = value}
-    
-    -- propagate syncvars to all connected clients
+    -- propagate syncvars to all other clients
     for i,v in pairs(netserver.clients) do
       if not (i == id) then
-        netserver:send(lube.bin:pack(data), i)
+        netserver:send(data_in, i)
       end
     end
   end
@@ -61,29 +63,29 @@ function client_messages(data)
   if msg == "NewUID" then
     -- A new client has connected (remote)
     -- create a client object for it
-    print("New remote player")
-    remote_clients[data.id] = new_client("d.75.jpg")
+    print("New remote player (id = " .. tostring(data.id) .. ")")
+    remote_clients[data.id] = new_client("d.75.jpg", true)
     
   elseif msg == "NewUIDLocal" then
     -- We are the new client that has been connected
     -- create a client object for it
-    print("I was the new client that connected")
+    print("I was the new client that connected (id = " .. tostring(data.id) .. ")")
     local_id = data.id
-    local_client = new_client("d.75.jpg")
-  elseif msg == "SyncVarClient" then
+    local_client = new_client("d.75.jpg", false)
+  elseif msg == "SyncVar" then
     
     -- client id
     clientid = data.id
     
     -- syncvar id and value
     varid = data.var
-    value = data.value
+    val = data.value
     
-    --print("GOT SyncVarClient")
-    
-    if not clientid == local_client then
-      print("Client needs to sync var: " .. tostring(varid) .. " with value: " .. tostring(value) .. " for client: " .. tostring(clientid))
-      remote_clients[clientid][varid].value = value
+    print("Client needs to sync var: " .. t_dvar(varid) .. " with value: " .. t_dvar(val) .. " for client: " .. t_dvar(clientid))
+    if remote_clients[clientid] then
+      remote_clients[clientid][varid] = val
+    else
+      print("No remote client with that id")
     end
   end
 end
@@ -155,7 +157,7 @@ function love.load()
   client_uid = 1 -- TODO: Make this only available in the server
   remote_clients = {}
 
-  clients = {}
+  --clients = {}
   --clients[1] = new_client("d.75.jpg")
 end
 
@@ -182,9 +184,9 @@ function love.update(dt)
         end
         
         -- update remote clients
-        --[[for i,v in pairs(remote_clients) do
+        for i,v in pairs(remote_clients) do
           v:update(dt)
-        end]]
+        end
         
         if is_server then
           netserver:update(dt)
@@ -237,8 +239,8 @@ function new_syncvar(value)
 end
 
 
-function new_client(name)
-	client = {}
+function new_client(name, is_remote)
+	client = { is_remote = is_remote}
 	client.img = love.graphics.newImage(name)
 	
   local w = client.img:getWidth()
@@ -280,10 +282,15 @@ function new_client(name)
 	
 	-- update client
 	function client:update(dt)
-    self.x = self.body:getX()
-    self.y = self.body:getY()
-    self:sync_vars(dt)
-    self:move()
+	  if self.is_remote then
+	    self.body:setX(self.x)
+	    self.body:setY(self.y)
+    else
+      self.x = self.body:getX()
+      self.y = self.body:getY()
+      self:sync_vars(dt)
+      self:move()
+    end
 	end
 	
 	-- draw client
