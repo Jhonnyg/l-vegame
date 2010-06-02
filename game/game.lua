@@ -41,7 +41,7 @@ function server_messages(data_in, id)
     varid = data.var
     value = data.value
     
-    print("Server needs to sync var: " .. t_dvar(varid) .. " with value: " .. t_dvar(value) .. " for client: " .. t_dvar(clientid))
+    --print("Server needs to sync var: " .. t_dvar(varid) .. " with value: " .. t_dvar(value) .. " for client: " .. t_dvar(clientid))
     
     -- propagate syncvars to all other clients
     for i,v in pairs(netserver.clients) do
@@ -67,13 +67,13 @@ function client_messages(data)
   if msg == "NewUID" then
     -- A new client has connected (remote)
     -- create a client object for it
-    print("New remote player (id = " .. tostring(data.id) .. ")")
+    print("New remote player (id = " .. tostring(data.id) .. ").")
     remote_clients[data.id] = new_client("d.75.jpg", true)
     
   elseif msg == "NewUIDLocal" then
     -- We are the new client that has been connected
     -- create a client object for it
-    print("I was the new client that connected (id = " .. tostring(data.id) .. ")")
+    print("Connected to server as new player (id = " .. tostring(data.id) .. ").")
     local_id = data.id
     local_client = new_client("d.75.jpg", false)
   elseif msg == "SyncVar" then
@@ -85,7 +85,7 @@ function client_messages(data)
     varid = data.var
     val = data.value
     
-    print("Client needs to sync var: " .. t_dvar(varid) .. " with value: " .. t_dvar(val) .. " for client: " .. t_dvar(clientid))
+    --print("Client needs to sync var: " .. t_dvar(varid) .. " with value: " .. t_dvar(val) .. " for client: " .. t_dvar(clientid))
     if remote_clients[clientid] then
       remote_clients[clientid][varid] = val
     else
@@ -96,6 +96,17 @@ end
 
 -------------------------------------------------------------------------
 -- Client functions
+function game.join_server(ip)
+  is_server = false
+  netclient = lube.client()
+  netclient:setCallback(client_messages)
+  netclient:setHandshake("Pooper")
+  print("Started client: " .. tostring(netclient:connect(ip, 4632, true)))
+  
+  -- pack and send UID request
+  netclient:send(lube.bin:pack({msg = 'GetUID'}))
+end
+
 function new_camera()
     camera = {}
     camera.lookat = {x = 0
@@ -116,6 +127,16 @@ end
 
 -------------------------------------------------------------------------
 -- Server functions
+function game.start_server()
+  netserver = lube.server(4632)
+  netserver:setCallback(server_messages, server_connect, server_disconnect)
+  netserver:setHandshake("Pooper")
+  print("Started server...")
+  
+  -- Join new local server
+  game.join_server("localhost")
+  is_server = true
+end
 function addbox(x,y,w,h)
     local t = {}
     --t.b = ground
@@ -152,6 +173,7 @@ function game.preload()
   addbox(200,200,75,75)
   addbox(50,settings.size.y-90,75,75)
   addbox(settings.size.x/2,settings.size.y-15,settings.size.x*5,15)
+  
 	--------------
 	camera = new_camera()
   
@@ -160,28 +182,10 @@ function game.preload()
   -- Networking
   netserver = nil
   netclient = nil
-  if is_server then
-    netserver = lube.server(4632)
-    netserver:setCallback(server_messages, server_connect, server_disconnect)
-    netserver:setHandshake("Pooper")
-    --netserver:startserver(4632)
-    print("Started server...")
-  else
-    netclient = lube.client()
-    netclient:setCallback(client_messages)
-    netclient:setHandshake("Pooper")
-    print("Started client: " .. tostring(netclient:connect("127.0.0.1", 4632, true)))
-    
-    -- pack and send UID request
-    netclient:send(lube.bin:pack({msg = 'GetUID'}))
-  end
   
   --------------
   client_uid = 1 -- TODO: Make this only available in the server
   remote_clients = {}
-
-  --clients = {}
-  --clients[1] = new_client("d.75.jpg")
 end
 
 function game.update(dt)
@@ -198,9 +202,11 @@ function game.update(dt)
           v:update(dt)
         end
         
-        if is_server then
+        if netserver then
           netserver:update(dt)
-        else
+        end
+        
+        if netclient then
           netclient:update(dt)
         end
 end

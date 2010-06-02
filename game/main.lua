@@ -108,7 +108,7 @@ function menu.preload()
 	widgets = {}
 	widgets['quit'] = new_button(10, 10, 80, 24, "Quit", function () love.event.push("q") end )
 	widgets['start_server'] = new_button(300, 200, 100, 24, "Start server", menu.action.start_server )
-	widgets['serverip'] = new_input(300, 300, 200, function () menu.action.join_server(widgets.serverip.value) end )
+	widgets['serverip'] = new_input(300, 300, 200, "localhost", function () menu.action.join_server(widgets.serverip.value) end )
 	widgets['join_server'] = new_button(300, 340, 100, 24, "Join server", function () menu.action.join_server(widgets.serverip.value) end )
 	
 	-- general GUI state holders
@@ -272,12 +272,12 @@ function new_button(px, py, w, h, label, onClicked)
 end
 
 
-function new_input(px, py, w, onEnter)
+function new_input(px, py, w, value, onEnter)
 	h = 20
 	widget = new_widget(px, py, w, h, onEnter)
 	widget.active = false
-	widget.value = ""
-	widget.outputstr = ""
+	widget.value = value
+	widget.outputstr = value
 	widget.max_visible = math.max(0, math.floor(w / 7) - 1)
 	
 	widget.oldupdate = widget.update
