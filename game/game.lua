@@ -40,12 +40,14 @@ function server_messages(data_in, id)
     server_data.clients[client_uid] = {ip = netserver.clients[id][1]}
     
     --client_uid = client_uid + 1
-  elseif msg == "RemoveClient" then
+  elseif msg == "ClientDisconnect" then
     clientid = data.id
     
     -- send notification to all users that client with id has left
-    for i,v in pairs(netserver.clients) do
-        netserver:send(data_in, i)
+    server_data.clients[clientid] = nil
+
+    for i,v in pairs(server_data.clients) do
+      netserver:send(data_in, i)
     end
     
   elseif msg == "SyncVar" then
@@ -79,10 +81,12 @@ end
 
 function server_disconnect(data)
   print("server_disconnect: " .. tostring(data))
-  --table.remove(server_data.clients, data)
+  
   server_data.clients[data] = nil
   disconnect_data = lube.bin:pack({msg = "ClientDisconnect",
-                                   id = data})
+                                   id = data,
+                                   reason = "Client pinged out!"})
+                                   
   for i,v in pairs(server_data.clients) do
     netserver:send(disconnect_data, i)
   end
@@ -105,17 +109,6 @@ function client_messages(data)
     local_id = data.id
     local_client = new_client(data.ip, false)
     
-  elseif msg == "RemoveClient" then
-    clientid = data.id
-    
-    
-    if remote_clients[clientid] then
-        table.remove(remote_clients,clientid)
-    else
-        print "No remote client with that id"
-        addbox(20,100,50,50)
-    end
-    
   elseif msg == "SyncVar" then
     
     -- client id
@@ -133,7 +126,7 @@ function client_messages(data)
     end
     
   elseif msg == "ClientDisconnect" then
-    print("A client has disconnected (id = " .. tostring(data.id) .. ")")
+    print("A client has disconnected (id = " .. tostring(data.id) .. " reason = " .. tostring(data.reason) .. ")")
     
     -- Remove client from our list of remote clients
     disconnect_remote_client(data.id)
@@ -348,10 +341,10 @@ function new_client(name, is_remote)
 	client.synced_vars = {x = new_syncvar(0),
 	                      y = new_syncvar(0)}
 	
-        function client:quit()
-            data = {msg = 'RemoveClient', id = local_id}
-	    netclient:send(lube.bin:pack(data))
-        end
+  function client:clean_quit()
+    data = {msg = "ClientDisconnect", id = local_id, reason = "Player left game."}
+    netclient:send(lube.bin:pack(data))
+  end
         
 	-- sync variables via LUBE
 	function client:sync_vars(dt)
@@ -401,7 +394,7 @@ function new_client(name, is_remote)
     v_x, v_y = self.body:getLinearVelocity()
 
     if love.keyboard.isDown("escape") then
-        self.quit()
+        self:clean_quit()
         love.event.push("q")
     end
 
