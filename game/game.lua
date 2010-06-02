@@ -28,7 +28,7 @@ function server_messages(data_in, id)
       else
         netserver:send(lube.bin:pack({msg = 'NewUIDLocal', id = client_uid, ip = netserver.clients[id][1]}), i) -- Notify the new client of his own id
         for tuid = 1,(client_uid-1) do
-          netserver:send(lube.bin:pack({msg = 'NewUID', id = tuid, ip = netserver.clients[id][1]}), i) -- Notify the new client of all other/previous clients
+          netserver:send(lube.bin:pack({msg = 'NewUID', id = tuid, ip = netserver.clients[tuid][1]}), i) -- Notify the new client of all other/previous clients
         end
       end
     end
@@ -153,6 +153,10 @@ end
 
 -------------------------------------------------------------------------
 -- Joint Client & Server functions
+function game.init()
+  love.keyboard.setKeyRepeat(1, 1)
+end
+
 function game.preload()
 	love.keyboard.setKeyRepeat(1)
   settings = { size = vec2(800,600), fullscreen = false, worldsize = vec2(2000,2000)}

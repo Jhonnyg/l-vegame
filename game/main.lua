@@ -7,16 +7,15 @@ menu = {}
 menu.action = {}
 function menu.action.join_server(ip)
   game.join_server(widgets.serverip.value)
-  gs = "game"
+  change_gamestate("game")
 end
 
 function menu.action.start_server()
   game.start_server()
-  gs = "game"
+  change_gamestate("game")
 end
 
 function menu.preload()
-	
 	-- Set the background color to soothing pink.
 	love.graphics.setBackgroundColor(110, 110, 110)
 	
@@ -148,26 +147,39 @@ function menu.draw()
 	--love.graphics.print(widgets['inputbox'].value, 20, 20)
 end
 
+function menu.init()
+  love.keyboard.setKeyRepeat(400, 80)
+end
+
+function change_gamestate(new_state)
+  gs = new_state
+  gamestates[gs].init()
+end
+
 function love.load()
   
   -- application/game state
 	gamestates = {
 	  menu = {
 	    preload = menu.preload,
-	    update = menu.update,
-	    draw = menu.draw
+	    init    = menu.init,
+	    update  = menu.update,
+	    draw    = menu.draw
 	  },
 	  game = {
 	    preload = game.preload,
-	    update = game.update,
-	    draw = game.draw
+	    init    = game.init,
+	    update  = game.update,
+	    draw    = game.draw
 	  }
 	}
-	gs = "menu"
+	gs = nil
   
   for state,v in pairs(gamestates) do
     gamestates[state].preload()
   end
+  
+  change_gamestate("menu")
 end
 
 function love.update(dt)
@@ -311,23 +323,6 @@ function new_input(px, py, w, value, onEnter)
 	end
 	
 	function widget:draw()
-		--[[if self.active then
-			love.graphics.setColor(0x44, 0xff, 0x44)
-		else
-			love.graphics.setColor(0xff, 0x44, 0x44)
-		end
-		
-		love.graphics.rectangle('fill', self.x, self.y, self.w, self.h)
-		
-		love.graphics.setColor(0xff, 0xff, 0xff)
-		--love.graphics.draws(widgetlook, self.x, self.y, self.w, self.h)
-		
-		local outputstr = string.sub(self.value .. "|", -widget.max_visible)
-		love.graphics.setColor(0xee, 0xee, 0xee)
-		love.graphics.print(outputstr, self.x + 3, self.y + self.h / 2 + 4)
-		love.graphics.setColor(0x11, 0x11, 0x11)
-		love.graphics.print(outputstr, self.x + 2, self.y + self.h / 2 + 3)]]
-		
 		look.input:render(self.x, self.y, self.w, self.h, self.outputstr)
 	end
 	
