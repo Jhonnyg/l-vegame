@@ -147,7 +147,7 @@ function love.load()
     netclient = lube.client()
     netclient:setCallback(client_messages)
     netclient:setHandshake("Pooper")
-    print("Started client: " .. tostring(netclient:connect("127.0.0.1", 4632, true)))
+    print("Started client: " .. tostring(netclient:connect("home.md5.se", 4632, true)))
     
     -- pack and send UID request
     netclient:send(lube.bin:pack({msg = 'GetUID'}))
