@@ -23,9 +23,9 @@ function server_messages(data_in, id)
   if msg == "GetUID" then
     for i,v in pairs(netserver.clients) do
       if not (i == id) then
-        netserver:send(lube.bin:pack({msg = 'NewUID', id = client_uid}), i) -- Notify all other clients that a new client has connected
+        netserver:send(lube.bin:pack({msg = 'NewUID', id = client_uid, ip = v[1]}), i) -- Notify all other clients that a new client has connected
       else
-        netserver:send(lube.bin:pack({msg = 'NewUIDLocal', id = client_uid}), i) -- Notify the new client of his own id
+        netserver:send(lube.bin:pack({msg = 'NewUIDLocal', id = client_uid, ip = v[1]}), i) -- Notify the new client of his own id
         for tuid = 1,(client_uid-1) do
           netserver:send(lube.bin:pack({msg = 'NewUID', id = tuid}), i) -- Notify the new client of all other/previous clients
         end
@@ -67,15 +67,15 @@ function client_messages(data)
   if msg == "NewUID" then
     -- A new client has connected (remote)
     -- create a client object for it
-    print("New remote player (id = " .. tostring(data.id) .. ").")
-    remote_clients[data.id] = new_client("d.75.jpg", true)
+    print("New remote player (id = " .. tostring(data.id) .. ", ip = " .. tostring(data.ip) .. ").")
+    remote_clients[data.id] = new_client(data.ip, true)
     
   elseif msg == "NewUIDLocal" then
     -- We are the new client that has been connected
     -- create a client object for it
-    print("Connected to server as new player (id = " .. tostring(data.id) .. ").")
+    print("Connected to server as new player (id = " .. tostring(data.id) .. ", ip = " .. tostring(data.ip) .. ").")
     local_id = data.id
-    local_client = new_client("d.75.jpg", false)
+    local_client = new_client(data.ip, false)
   elseif msg == "SyncVar" then
     
     -- client id
@@ -255,8 +255,8 @@ end
 
 
 function new_client(name, is_remote)
-	client = { is_remote = is_remote}
-	client.img = love.graphics.newImage(name)
+	client = { is_remote = is_remote, name = name}
+	client.img = love.graphics.newImage("d.75.jpg")
 	
   local w = client.img:getWidth()
   local h = client.img:getHeight()
@@ -317,6 +317,12 @@ function new_client(name, is_remote)
     -- draw bounding box
     love.graphics.setColor(0,0,0)
     love.graphics.polygon("line", self.shape:getPoints())
+    
+    -- Draw name
+    local nameoffset = -50
+    love.graphics.print(self.name, self.x+1, self.y+1+nameoffset)
+    love.graphics.setColor(255,255,255)
+    love.graphics.print(self.name, self.x, self.y+nameoffset)
 	end
         
         function client:move()
