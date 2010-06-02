@@ -1,16 +1,18 @@
 require "LUBE.lua"
 
-function vec2(x,y)
-  return {x = x, y = y}
-end
+game = {}
 
 is_server = false
+
 -------------------------------------------------------------------------
 -- Debugging helpers
 function t_dvar(var)
   return ("'" .. tostring(var) .. "' (" .. type(var) .. ")")
 end
 
+function vec2(x,y)
+  return {x = x, y = y}
+end
 
 -------------------------------------------------------------------------
 -- Callback functions for LUBE
@@ -129,7 +131,7 @@ end
 
 -------------------------------------------------------------------------
 -- Joint Client & Server functions
-function pre_load()
+function game.preload()
 	love.keyboard.setKeyRepeat(1)
   settings = { size = vec2(800,600), fullscreen = false, worldsize = vec2(2000,2000)}
 
@@ -138,8 +140,8 @@ function pre_load()
 	love.graphics.setBackgroundColor(0xff, 0xf1, 0xf7)
 	
 	love.graphics.setColor(255, 255, 255, 200)
-	font = love.graphics.newFont(love._vera_ttf, 10)
-	love.graphics.setFont(font)
+	--font = love.graphics.newFont(love._vera_ttf, 10)
+	--love.graphics.setFont(font)
 	
   --------------
   world = love.physics.newWorld(settings.worldsize.x, settings.worldsize.x)
@@ -182,7 +184,7 @@ function pre_load()
   --clients[1] = new_client("d.75.jpg")
 end
 
-function gameupdate(dt)
+function game.update(dt)
         -- update world
         world:update(dt)
         -- update camera
@@ -203,7 +205,7 @@ function gameupdate(dt)
         end
 end
 
-function gamedraw()
+function game.draw()
         love.graphics.translate(camera.lookat.x,camera.lookat.y)
         
         if local_client then
@@ -349,4 +351,4 @@ function new_client(name, is_remote)
 	return client
 end
 
-
+module("game")
