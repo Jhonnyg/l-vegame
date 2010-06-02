@@ -136,8 +136,6 @@ function client_messages(data)
     print("A client has disconnected (id = " .. tostring(data.id) .. ")")
     
     -- Remove client from our list of remote clients
-    --table.remove(remote_clients, data.id)
-    --remote_clients[data.id] = nil
     disconnect_remote_client(data.id)
   end
 end
@@ -157,7 +155,9 @@ function game.join_server(ip)
 end
 
 function disconnect_remote_client(id)
-  remote_clients[id].body = nil
+  if remote_clients[id] then
+    remote_clients[id].body = nil
+  end
   remote_clients[id] = nil
 end
 
@@ -202,6 +202,7 @@ function game.start_server()
   game.join_server("localhost")
   is_server = true
 end
+
 function addbox(x,y,w,h)
     local t = {}
     --t.b = ground
@@ -219,10 +220,7 @@ end
 -- Joint Client & Server functions
 function game.init()
   love.keyboard.setKeyRepeat(1, 1)
-end
-
-function game.preload()
-	love.keyboard.setKeyRepeat(1)
+  
   settings = { size = vec2(800,600), fullscreen = false, worldsize = vec2(2000,2000)}
 
 	-- Set the background color to soothing pink.
@@ -243,17 +241,17 @@ function game.preload()
   addbox(50,settings.size.y-90,75,75)
   addbox(settings.size.x/2,settings.size.y-15,settings.size.x*5,15)
   
-	--------------
+  -- setup camera
 	camera = new_camera()
-  
-  
+end
+
+function game.preload()
   --------------
   -- Networking
   netserver = nil
   netclient = nil
   
   --------------
-  --client_uid = 1 -- TODO: Make this only available in the server
   remote_clients = {}
 end
 
@@ -292,15 +290,14 @@ function game.draw()
           v:draw()
         end
         
+        love.graphics.setColor(0,0,0)
         for k,v in pairs(scene_objects) do
-            v:draw()
+          v:draw()
         end
         
+        love.graphics.setColor(0,0,0)
         love.graphics.translate(-camera.lookat.x,-camera.lookat.y)
         love.graphics.print("camera lookat (" .. camera.lookat.x .. " , " .. camera.lookat.y  .. ")",200,200)
-        --love.graphics.print("client pos (" .. local_client.x .. " , " .. local_client.y  .. ")",200,210)
-        --v_x,v_y = local_client.body:getLinearVelocity()
-        --love.graphics.print("client x_v (" .. v_x .. " , " .. v_y  .. ")",200,220)
 end
 
 --[[
@@ -327,14 +324,14 @@ function new_client(name, is_remote)
 	client = { is_remote = is_remote, name = name}
 	client.img = love.graphics.newImage("d.75.jpg")
 	
-        local w = client.img:getWidth()
-        local h = client.img:getHeight()
-        client.properties = {velocity_limit = 500, x_force = 250, y_impulse = 50}
-        client.body = love.physics.newBody(world, 0, 20,4)
-        client.shape = love.physics.newRectangleShape(client.body,0,0, w, h)
-        client.body:setAngularDamping(0.5)
-        --client.body:setLinearDamping(0.5)
-        in_air = false
+  local w = client.img:getWidth()
+  local h = client.img:getHeight()
+  client.properties = {velocity_limit = 500, x_force = 250, y_impulse = 50}
+  client.body = love.physics.newBody(world, 0, 20,4)
+  client.shape = love.physics.newRectangleShape(client.body,0,0, w, h)
+  client.body:setAngularDamping(0.5)
+  --client.body:setLinearDamping(0.5)
+  in_air = false
         
 	-- metatable
 	mt = {}
@@ -371,15 +368,15 @@ function new_client(name, is_remote)
 	
 	-- update client
 	function client:update(dt)
-            if self.is_remote then
-              self.body:setX(self.x)
-              self.body:setY(self.y)
-            else
-              self.x = self.body:getX()
-              self.y = self.body:getY()
-              self:sync_vars(dt)
-              self:move()
-            end
+    if self.is_remote then
+      self.body:setX(self.x)
+      self.body:setY(self.y)
+    else
+      self.x = self.body:getX()
+      self.y = self.body:getY()
+      self:sync_vars(dt)
+      self:move()
+    end
 	end
 	
 	-- draw client
@@ -399,43 +396,43 @@ function new_client(name, is_remote)
     love.graphics.print(self.name, self.x, self.y+nameoffset)
 	end
         
-        function client:move()
-                x,y = self.body:getWorldCenter()
-                v_x, v_y = self.body:getLinearVelocity()
-                
-                if love.keyboard.isDown("escape") then
-                    self.quit()
-                    love.event.push("q")
-                end
-                
-                if love.keyboard.isDown("left") then
-                    if v_x > -self.properties.velocity_limit then
-                        self.body:applyForce(-self.properties.x_force,0,x,y)
-                    end
-                end
-                if love.keyboard.isDown("right") then
-                    if v_x < self.properties.velocity_limit then
-                        self.body:applyForce(self.properties.x_force,0,x,y)
-                    end
-                end
-                if love.keyboard.isDown("up") then
-                    if v_y < self.properties.velocity_limit then
-                        epsilon = 0.015
-                        if v_y == 0 then
-                            in_air = false
-                        end
-                        
-                        if v_y <= 0 + epsilon and in_air == false then
-                            in_air = true
-                            self.body:applyImpulse(0,-self.properties.y_impulse,x,y)
-                        end
-                    end
-                end
-                
-                if love.keyboard.isDown(" ") then
-                    
-                end
+  function client:move()
+    x,y = self.body:getWorldCenter()
+    v_x, v_y = self.body:getLinearVelocity()
+
+    if love.keyboard.isDown("escape") then
+        self.quit()
+        love.event.push("q")
+    end
+
+    if love.keyboard.isDown("left") then
+        if v_x > -self.properties.velocity_limit then
+            self.body:applyForce(-self.properties.x_force,0,x,y)
         end
+    end
+    if love.keyboard.isDown("right") then
+        if v_x < self.properties.velocity_limit then
+            self.body:applyForce(self.properties.x_force,0,x,y)
+        end
+    end
+    if love.keyboard.isDown("up") then
+        if v_y < self.properties.velocity_limit then
+            epsilon = 0.015
+            if v_y == 0 then
+                in_air = false
+            end
+        
+            if v_y <= 0 + epsilon and in_air == false then
+                in_air = true
+                self.body:applyImpulse(0,-self.properties.y_impulse,x,y)
+            end
+        end
+    end
+
+    if love.keyboard.isDown(" ") then
+    
+    end
+  end
 	
 	setmetatable(client, mt)
 	
