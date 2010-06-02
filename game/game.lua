@@ -102,6 +102,7 @@ function game.join_server(ip)
   netclient = lube.client()
   netclient:setCallback(client_messages)
   netclient:setHandshake("Pooper")
+  netclient:setPing(true, 2, "hello")
   print("Started client: " .. tostring(netclient:connect(ip, 4632, true)))
   
   -- pack and send UID request
@@ -132,6 +133,7 @@ function game.start_server()
   netserver = lube.server(4632)
   netserver:setCallback(server_messages, server_connect, server_disconnect)
   netserver:setHandshake("Pooper")
+  netserver:setPing(true, 2, "hello")
   print("Started server...")
   
   -- Join new local server

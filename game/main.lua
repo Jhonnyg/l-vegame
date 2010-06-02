@@ -151,6 +151,8 @@ function menu.init()
   love.keyboard.setKeyRepeat(400, 80)
 end
 
+-- Change from one gamestate to another
+--   it will call the new gamestates init()
 function change_gamestate(new_state)
   gs = new_state
   gamestates[gs].init()
