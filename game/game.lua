@@ -21,18 +21,25 @@ function server_messages(data_in, id)
   msg = data.msg
   
   if msg == "GetUID" then
-    print("Sending UID")
+    
+    client_uid = id
+    
     for i,v in pairs(netserver.clients) do
       if not (i == id) then
         netserver:send(lube.bin:pack({msg = 'NewUID', id = client_uid, ip = netserver.clients[id][1]}), i) -- Notify all other clients that a new client has connected
       else
         netserver:send(lube.bin:pack({msg = 'NewUIDLocal', id = client_uid, ip = netserver.clients[id][1]}), i) -- Notify the new client of his own id
-        for tuid = 1,(client_uid-1) do
-          netserver:send(lube.bin:pack({msg = 'NewUID', id = tuid, ip = netserver.clients[tuid][1]}), i) -- Notify the new client of all other/previous clients
+        --for tuid = 1,(client_uid-1) do
+        for tuid,tval in pairs(server_data.clients) do
+          netserver:send(lube.bin:pack({msg = 'NewUID', id = tuid, ip = tval.ip}), i) -- Notify the new client of all other/previous clients
         end
       end
     end
-    client_uid = client_uid + 1
+    
+    -- add client info to server data
+    server_data.clients[client_uid] = {ip = netserver.clients[id][1]}
+    
+    --client_uid = client_uid + 1
   elseif msg == "SyncVar" then
     
     -- client id
@@ -42,10 +49,15 @@ function server_messages(data_in, id)
     varid = data.var
     value = data.value
     
-    --print("Server needs to sync var: " .. t_dvar(varid) .. " with value: " .. t_dvar(value) .. " for client: " .. t_dvar(clientid))
+    
+    if netserver.clients[clientid] == nil then
+      print("Can't propagate a non known client! (" .. tostring(clientid) .. ")")
+      return
+    end
     
     -- propagate syncvars to all other clients
     for i,v in pairs(netserver.clients) do
+    --for i,v in pairs(server_data.clients) do
       if not (i == id) then
         netserver:send(data_in, i)
       end
@@ -59,6 +71,13 @@ end
 
 function server_disconnect(data)
   print("server_disconnect: " .. tostring(data))
+  --table.remove(server_data.clients, data)
+  server_data.clients[data] = nil
+  disconnect_data = lube.bin:pack({msg = "ClientDisconnect",
+                                   id = data})
+  for i,v in pairs(server_data.clients) do
+    netserver:send(disconnect_data, i)
+  end
 end
 
 function client_messages(data)
@@ -92,6 +111,14 @@ function client_messages(data)
     else
       print("No remote client with that id")
     end
+    
+  elseif msg == "ClientDisconnect" then
+    print("A client has disconnected (id = " .. tostring(data.id) .. ")")
+    
+    -- Remove client from our list of remote clients
+    --table.remove(remote_clients, data.id)
+    --remote_clients[data.id] = nil
+    disconnect_remote_client(data.id)
   end
 end
 
@@ -102,11 +129,16 @@ function game.join_server(ip)
   netclient = lube.client()
   netclient:setCallback(client_messages)
   netclient:setHandshake("Pooper")
-  netclient:setPing(true, 2, "hello")
+  netclient:setPing(true, 3, "hello")
   print("Started client: " .. tostring(netclient:connect(ip, 4632, true)))
   
   -- pack and send UID request
   netclient:send(lube.bin:pack({msg = 'GetUID'}))
+end
+
+function disconnect_remote_client(id)
+  remote_clients[id].body = nil
+  remote_clients[id] = nil
 end
 
 function new_camera()
@@ -129,11 +161,14 @@ end
 
 -------------------------------------------------------------------------
 -- Server functions
+server_data = {}
+server_data.clients = {}
+
 function game.start_server()
   netserver = lube.server(4632)
   netserver:setCallback(server_messages, server_connect, server_disconnect)
   netserver:setHandshake("Pooper")
-  netserver:setPing(true, 2, "hello")
+  netserver:setPing(true, 3, "hello")
   print("Started server...")
   
   -- Join new local server
@@ -191,7 +226,7 @@ function game.preload()
   netclient = nil
   
   --------------
-  client_uid = 1 -- TODO: Make this only available in the server
+  --client_uid = 1 -- TODO: Make this only available in the server
   remote_clients = {}
 end
 
@@ -292,13 +327,13 @@ function new_client(name, is_remote)
 	-- sync variables via LUBE
 	function client:sync_vars(dt)
 	  for i,v in pairs(self.synced_vars) do
-	    --if v.dirty then
+	    if v.dirty then
 	      -- var is dirty, sync it!
 	      data = {msg = 'SyncVar', id = local_id, var = i, value = v.value}
 	      netclient:send(lube.bin:pack(data))
 	      
-	      --v.dirty = false
-      --end
+	      v.dirty = false
+      end
     end
 	end
 	

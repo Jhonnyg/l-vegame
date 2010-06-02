@@ -332,6 +332,7 @@ function lube.client:disableBroadcast()
 end
 
 lube.server = {}
+lube.server.clientindex = 0
 lube.server.udp = {}
 lube.server.udp.protocol = "udp"
 lube.server.tcp = {}
@@ -527,7 +528,7 @@ function lube.server:update(dt)
 	local data, ip, port = self:receive()
 	while data do
 		local index = 0
-		for i, v in ipairs(self.clients) do
+		for i, v in pairs(self.clients) do
 			if v[1] == ip and v[2] == port then
 				index = i
 				break
@@ -539,8 +540,10 @@ function lube.server:update(dt)
 				self.clients[index] = nil
 				return self.disconnectcallback(index)
 			else
-				index = #self.clients+1
-				table.insert(self.clients, index, {ip, port})
+			  lube.server.clientindex = lube.server.clientindex + 1
+				index = lube.server.clientindex --#self.clients+1
+				self.clients[index] = {ip, port}
+				--table.insert(self.clients, index, {ip, port})
 				return self.connectcallback(index)
 			end
 		elseif data == self.ping.msg then
