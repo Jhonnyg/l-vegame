@@ -1,226 +1,86 @@
-require "LUBE.lua"
-
-function vec2(x,y)
-  tbl = {x = x, y = y}
-  
-  return tbl
-end
-
-is_server = false
-
-function t_dvar(var)
-  return ("'" .. tostring(var) .. "' (" .. type(var) .. ")")
-end
-
-function server_messages(data_in, id)
-  data = lube.bin:unpack(data_in)
-  msg = data.msg
-  
-  if msg == "GetUID" then
-    for i,v in pairs(netserver.clients) do
-      if not (i == id) then
-        netserver:send(lube.bin:pack({msg = 'NewUID', id = client_uid}), i) -- Notify all other clients that a new client has connected
-      else
-        netserver:send(lube.bin:pack({msg = 'NewUIDLocal', id = client_uid}), i) -- Notify the new client of his own id
-        for tuid = 1,(client_uid-1) do
-          netserver:send(lube.bin:pack({msg = 'NewUID', id = tuid}), i) -- Notify the new client of all other/previous clients
-        end
-      end
-    end
-    client_uid = client_uid + 1
-  elseif msg == "SyncVar" then
-    
-    -- client id
-    clientid = data.id
-    
-    -- syncvar id and value
-    varid = data.var
-    value = data.value
-    
-    print("Server needs to sync var: " .. t_dvar(varid) .. " with value: " .. t_dvar(value) .. " for client: " .. t_dvar(clientid))
-    
-    -- propagate syncvars to all other clients
-    for i,v in pairs(netserver.clients) do
-      if not (i == id) then
-        netserver:send(data_in, i)
-      end
-    end
-  end
-end
-
-function server_connect(data)
-  print("server_connect: " .. tostring(data))
-end
-
-function server_disconnect(data)
-  print("server_disconnect: " .. tostring(data))
-end
-
-function client_messages(data)
-  data = lube.bin:unpack(data)
-  msg = data.msg
-  
-  if msg == "NewUID" then
-    -- A new client has connected (remote)
-    -- create a client object for it
-    print("New remote player (id = " .. tostring(data.id) .. ")")
-    remote_clients[data.id] = new_client("d.75.jpg", true)
-    
-  elseif msg == "NewUIDLocal" then
-    -- We are the new client that has been connected
-    -- create a client object for it
-    print("I was the new client that connected (id = " .. tostring(data.id) .. ")")
-    local_id = data.id
-    local_client = new_client("d.75.jpg", false)
-  elseif msg == "SyncVar" then
-    
-    -- client id
-    clientid = data.id
-    
-    -- syncvar id and value
-    varid = data.var
-    val = data.value
-    
-    print("Client needs to sync var: " .. t_dvar(varid) .. " with value: " .. t_dvar(val) .. " for client: " .. t_dvar(clientid))
-    if remote_clients[clientid] then
-      remote_clients[clientid][varid] = val
-    else
-      print("No remote client with that id")
-    end
-  end
-end
-
-function new_camera()
-    camera = {}
-    camera.lookat = {x = 0
-                    ,y = 0 }
-    scroll_offset = settings.size.x / 4
-    
-    function camera:update()
-        if local_client.x < -self.lookat.x + scroll_offset then
-            self.lookat.x = -local_client.x + scroll_offset
-        elseif local_client.x > settings.size.x - self.lookat.x - scroll_offset then
-            self.lookat.x = settings.size.x-local_client.x - scroll_offset
-        end
-        
-    end
-    
-    return camera
-end
-
 function love.load()
-	love.keyboard.setKeyRepeat(1)
-  settings = { size = vec2(800,600), fullscreen = false, worldsize = vec2(2000,2000)}
-
+	
 	-- Set the background color to soothing pink.
-  love.graphics.setMode(settings.size.x, settings.size.y, settings.fullscreen, true, 0)
-	love.graphics.setBackgroundColor(0xff, 0xf1, 0xf7)
+	love.graphics.setBackgroundColor(110, 110, 110)
 	
 	love.graphics.setColor(255, 255, 255, 200)
-	font = love.graphics.newFont(love._vera_ttf, 10)
+	font = love.graphics.newFont("ProggySmall.ttf", 14)--love._vera_ttf, 10)
 	love.graphics.setFont(font)
 	
-  --------------
-  world = love.physics.newWorld(settings.worldsize.x, settings.worldsize.x)
-  world:setGravity(0, 700)
-  
-  -- create scenery
-  scene_objects = {}
-  addbox(200,200,75,75)
-  addbox(50,settings.size.y-90,75,75)
-  addbox(settings.size.x/2,settings.size.y-15,settings.size.x*5,15)
-	--------------
-	camera = new_camera()
-  
-  
-  --------------
-  -- Networking
-  netserver = nil
-  netclient = nil
-  if is_server then
-    netserver = lube.server(4632)
-    netserver:setCallback(server_messages, server_connect, server_disconnect)
-    netserver:setHandshake("Pooper")
-    --netserver:startserver(4632)
-    print("Started server...")
-  else
-    netclient = lube.client()
-    netclient:setCallback(client_messages)
-    netclient:setHandshake("Pooper")
-    print("Started client: " .. tostring(netclient:connect("127.0.0.1", 4632, true)))
+	widgets = {}
+	widgets[1] = new_button(300, 200, 200, 30, "Quit", function () love.event.push("q") end )
+	widgets['inputbox'] = new_input(300, 300, 200, function () love.event.push("q") end )
+	
+	widgetlook = love.graphics.newImage("uilook.png")
+    widgetlook:setFilter( "linear", "linear" )
+    look = { button = {} }
+    look.button.topleft = love.graphics.newQuad(0, 0, 5, 5, 256, 256)
+    look.button.topright = love.graphics.newQuad(7, 0, 5, 5, 256, 256)
+    look.button.top = love.graphics.newQuad(8, 0, 1, 5, 256, 256)
+    look.button.bottom = love.graphics.newQuad(8, 7, 1, 5, 256, 256)
+    look.button.bottomleft = love.graphics.newQuad(0, 7, 5, 5, 256, 256)
+    look.button.bottomright = love.graphics.newQuad(7, 7, 5, 5, 256, 256)
+    look.button.left = love.graphics.newQuad(0, 8, 5, 1, 256, 256)
+    look.button.right = love.graphics.newQuad(7, 8, 5, 1, 256, 256)
+    look.button.bg = love.graphics.newQuad(254, 0, 1, 255, 256, 256)
+    look.button.bginv = love.graphics.newQuad(254, 255, 1, -255, 256, 256)
     
-    -- pack and send UID request
-    netclient:send(lube.bin:pack({msg = 'GetUID'}))
-  end
-  
-  --------------
-  client_uid = 1 -- TODO: Make this only available in the server
-  remote_clients = {}
-
-  --clients = {}
-  --clients[1] = new_client("d.75.jpg")
-end
-
-function addbox(x,y,w,h)
-    local t = {}
-    --t.b = ground
-    t.box = { body,shape}
-    t.box.body = love.physics.newBody(world, x, y)
-    t.box.shape = love.physics.newRectangleShape(t.box.body, 0, 0, w,h)
-    function t:draw()
-        love.graphics.polygon("line", t.box.shape:getPoints())
+    function look.button:render(x, y, w, h, push, label)
+        love.graphics.setColor(255, 255, 255)
+        if not push then
+            love.graphics.drawq( widgetlook, self.bg, x+1, y+1, 0, w-2, 1.0/256.0 * (h-2), 0, 0)
+        else
+            love.graphics.drawq( widgetlook, self.bginv, x+1, y+1, 0, w-2, -1.0/256.0 * (h-2), 0, 0)
+        end
+        
+        love.graphics.drawq( widgetlook, self.topleft, x, y, 0, 1, 1, 0, 0)
+        love.graphics.drawq( widgetlook, self.topright, x+w-5, y, 0, 1, 1, 0, 0)
+        love.graphics.drawq( widgetlook, self.bottomleft, x, y+h-5, 0, 1, 1, 0, 0)
+        love.graphics.drawq( widgetlook, self.bottomright, x+w-5, y+h-5, 0, 1, 1, 0, 0)
+        
+        love.graphics.drawq( widgetlook, self.top, x+5, y, 0, w-10, 1, 0, 0)
+        love.graphics.drawq( widgetlook, self.bottom, x+5, y+h-5, 0, w-10, 1, 0, 0)
+        
+        love.graphics.drawq( widgetlook, self.right, x+w-5, y+5, 0, 1, h-10, 0, 0)
+        love.graphics.drawq( widgetlook, self.left, x, y+5, 0, 1, h-10, 0, 0)
+        
+        love.graphics.setColor(0xee, 0xee, 0xee)
+		love.graphics.print(label, x + w / 2 - #label * 3 + 1, y + h / 2 + 3 + 1)
+		love.graphics.setColor(0x11, 0x11, 0x11)
+		love.graphics.print(label, x + w / 2 - #label * 3, y + h / 2 + 3)
     end
-
-    table.insert(scene_objects, t)
+	
+	hover = 0
+	
+	key_buffer = ""
+	bs_last = false
+	bs_now = false
+	bs_released = false
+	
 end
 
 function love.update(dt)
-        -- update world
-        world:update(dt)
-        -- update camera
-        if local_client then
-          camera:update(dt)
-          local_client:update(dt)
-        end
-        
-        -- update remote clients
-        for i,v in pairs(remote_clients) do
-          v:update(dt)
-        end
-        
-        if is_server then
-          netserver:update(dt)
-        else
-          netclient:update(dt)
-        end
-        
-        -- update clients
-	--clients[1]:update(dt)
-        
-	
+
+	-- update all widgets
+	local mx, my = love.mouse.getPosition()
+	for k,w in pairs(widgets) do
+		local hit = w:hittest(mx, my)
+		if hit then
+			hover = k
+		end
+		w:update(dt, hit)
+	end
 end
 
 function love.draw()
-        love.graphics.translate(camera.lookat.x,camera.lookat.y)
-        
-        if local_client then
-          local_client:draw()
-        end
-        
-        -- draw remote clients
-        for i,v in pairs(remote_clients) do
-          v:draw()
-        end
-        
-        for k,v in pairs(scene_objects) do
-            v:draw()
-        end
-        
-        love.graphics.translate(-camera.lookat.x,-camera.lookat.y)
-        love.graphics.print("camera lookat (" .. camera.lookat.x .. " , " .. camera.lookat.y  .. ")",200,200)
-        --love.graphics.print("client pos (" .. local_client.x .. " , " .. local_client.y  .. ")",200,210)
-        --v_x,v_y = local_client.body:getLinearVelocity()
-        --love.graphics.print("client x_v (" .. v_x .. " , " .. v_y  .. ")",200,220)
+
+	-- update 
+    for k,w in pairs(widgets) do
+		w:draw()
+	end
+	
+	-- debug
+	love.graphics.print(widgets['inputbox'].value, 20, 20)
 end
 
 function love.keypressed(k)
@@ -231,115 +91,143 @@ function love.keypressed(k)
 	if k == "r" then
 		love.filesystem.load("main.lua")()
 	end
-end
-
-function new_syncvar(value)
-	var = {value = value, dirty = false}
-	return var
-end
-
-
-function new_client(name, is_remote)
-	client = { is_remote = is_remote}
-	client.img = love.graphics.newImage(name)
 	
-  local w = client.img:getWidth()
-  local h = client.img:getHeight()
-  client.properties = {velocity_limit = 500, x_force = 250, y_impulse = 50}
-  client.body = love.physics.newBody(world, 0, 20,4)
-  client.shape = love.physics.newRectangleShape(client.body,0,0, w, h)
-  client.body:setAngularDamping(0.5)
-  --client.body:setLinearDamping(0.5)
-  in_air = false
+	if k == "backspace" then
+		bs_released = true
+	end
+	
+	if #k == 1 and string.byte(k) > 45 and string.byte(k) < 123 then
+		key_buffer = key_buffer .. k
+	end
+	
+	if k == " " then
+		key_buffer = key_buffer .. " "
+	end
+end
+
+function love.keyreleased(k)
+	--[[if k == "backspace" then
+		bs_released = true
+	else
+		bs_released = false
+	end]]
+end
+
+function new_widget(px, py, w, h, onClicked)
+	widget = {x = px, y = py, w = w, h = h, onClicked = onClicked}
+	
+	-- update widget
+	function widget:update(dt, hit)
+		self.hit = hit
+	end
+	
+	-- draw widget
+	function widget:draw()
+		--[[if self.hit then
+			love.graphics.setColor(0x44, 0xff, 0x44)
+		else
+			love.graphics.setColor(0xff, 0x44, 0x44)
+		end
+		love.graphics.rectangle('fill', self.x, self.y, self.w, self.h)]]
+	end
+	
+	-- point hittest
+	function widget:hittest(mx, my)
+		if mx < self.x then
+			return false
+		elseif mx > self.x + self.w then
+			return false
+		elseif my < self.y then
+			return false
+		elseif my > self.y + self.h then
+			return false
+		end
+		
+		return true
+	end
+	
+	return widget
+end
+
+function new_button(px, py, w, h, label, onClicked)
+	widget = new_widget(px, py, w, h, onClicked)
+	widget.label = label
+	
+	widget.oldupdate = widget.update
+	function widget:update(dt, hit)
+		self:oldupdate(dt, hit)
+		
+		if hit and love.mouse.isDown("l") then
+			self.onClicked()
+		end
+	end
+	
+	function widget:draw()
         
-	-- metatable
-	mt = {}
-	function mt:__index(id)
-		return self.synced_vars[id].value
-	end
-	function mt:__newindex(id, val)
-		self.synced_vars[id].dirty = true
-		self.synced_vars[id].value = val
+        look.button:render(self.x, self.y, self.w, self.h, self.hit, self.label)
 	end
 	
-	
-	-- variables that should be synced via the network
-	client.synced_vars = {x = new_syncvar(0),
-	                      y = new_syncvar(0)}
-	
-	-- sync variables via LUBE
-	function client:sync_vars(dt)
-	  for i,v in pairs(self.synced_vars) do
-	    --if v.dirty then
-	      -- var is dirty, sync it!
-	      data = {msg = 'SyncVar', id = local_id, var = i, value = v.value}
-	      netclient:send(lube.bin:pack(data))
-	      
-	      --v.dirty = false
-      --end
-    end
-	end
-	
-	-- update client
-	function client:update(dt)
-	  if self.is_remote then
-	    self.body:setX(self.x)
-	    self.body:setY(self.y)
-    else
-      self.x = self.body:getX()
-      self.y = self.body:getY()
-      self:sync_vars(dt)
-      self:move()
-    end
-	end
-	
-	-- draw client
-	function client:draw()
-		-- TODO: Draw some fancy stuff!
-    love.graphics.setColor(255,255,255)
-    love.graphics.draw(self.img, self.x-w/2, self.y-h/2)
-    
-    -- draw bounding box
-    love.graphics.setColor(0,0,0)
-    love.graphics.polygon("line", self.shape:getPoints())
-	end
-        
-        function client:move()
-                x,y = self.body:getWorldCenter()
-                v_x, v_y = self.body:getLinearVelocity()
-                
-                if love.keyboard.isDown("left") then
-                    if v_x > -self.properties.velocity_limit then
-                        self.body:applyForce(-self.properties.x_force,0,x,y)
-                    end
-                end
-                if love.keyboard.isDown("right") then
-                    if v_x < self.properties.velocity_limit then
-                        self.body:applyForce(self.properties.x_force,0,x,y)
-                    end
-                end
-                if love.keyboard.isDown("up") then
-                    if v_y < self.properties.velocity_limit then
-                        epsilon = 0.015
-                        if v_y == 0 then
-                            in_air = false
-                        end
-                        
-                        if v_y <= 0 + epsilon and in_air == false then
-                            in_air = true
-                            self.body:applyImpulse(0,-self.properties.y_impulse,x,y)
-                        end
-                    end
-                end
-                
-                if love.keyboard.isDown(" ") then
-                    
-                end
-        end
-	
-	setmetatable(client, mt)
-	
-	return client
+	return widget
 end
+
+
+function new_input(px, py, w, onEnter)
+	h = 20
+	widget = new_widget(px, py, w, h, onEnter)
+	widget.active = false
+	widget.value = ""
+	widget.max_visible = math.floor(w / 6)
+	
+	widget.oldupdate = widget.update
+	function widget:update(dt, hit)
+		self:oldupdate(dt, hit)
+		
+		if love.mouse.isDown("l") then
+			if hit then
+				self.active = true
+			else
+				self.active = false
+			end
+		end
+		
+		if self.active then
+			-- capture input
+			if love.keyboard.isDown("return") then
+				self.onClicked()
+			elseif bs_released then
+				if #self.value > 0 then
+					self.value = string.sub(self.value, 1, #self.value - 1)
+				end
+				bs_released = false
+			else
+				self.value = self.value .. key_buffer
+				key_buffer = ""
+			end
+		end
+	end
+	
+	function widget:draw()
+		--[[if self.active then
+			love.graphics.setColor(0x44, 0xff, 0x44)
+		else
+			love.graphics.setColor(0xff, 0x44, 0x44)
+		end
+		
+		love.graphics.rectangle('fill', self.x, self.y, self.w, self.h)
+		]]
+		love.graphics.setColor(0xff, 0xff, 0xff)
+		--love.graphics.draws(widgetlook, self.x, self.y, self.w, self.h)
+		
+		local outputstr = string.sub(self.value .. "|", -widget.max_visible)
+		love.graphics.setColor(0xee, 0xee, 0xee)
+		love.graphics.print(outputstr, self.x + 3, self.y + self.h / 2 + 4)
+		love.graphics.setColor(0x11, 0x11, 0x11)
+		love.graphics.print(outputstr, self.x + 2, self.y + self.h / 2 + 3)
+	end
+	
+	return widget
+end
+
+
 
 
