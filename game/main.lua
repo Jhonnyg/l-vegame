@@ -194,7 +194,7 @@ end
 
 function love.keypressed(k)
 	if k == "escape" then
-		love.event.push("q")
+		--love.event.push("q")
 	end
 
 	if k == "r" then

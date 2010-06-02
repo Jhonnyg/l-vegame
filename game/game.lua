@@ -40,6 +40,14 @@ function server_messages(data_in, id)
     server_data.clients[client_uid] = {ip = netserver.clients[id][1]}
     
     --client_uid = client_uid + 1
+  elseif msg == "RemoveClient" then
+    clientid = data.id
+    
+    -- send notification to all users that client with id has left
+    for i,v in pairs(netserver.clients) do
+        netserver:send(data_in, i)
+    end
+    
   elseif msg == "SyncVar" then
     
     -- client id
@@ -96,6 +104,18 @@ function client_messages(data)
     print("Connected to server as new player (id = " .. tostring(data.id) .. ", ip = " .. tostring(data.ip) .. ").")
     local_id = data.id
     local_client = new_client(data.ip, false)
+    
+  elseif msg == "RemoveClient" then
+    clientid = data.id
+    
+    
+    if remote_clients[clientid] then
+        table.remove(remote_clients,clientid)
+    else
+        print "No remote client with that id"
+        addbox(20,100,50,50)
+    end
+    
   elseif msg == "SyncVar" then
     
     -- client id
@@ -153,6 +173,13 @@ function new_camera()
         elseif local_client.x > settings.size.x - self.lookat.x - scroll_offset then
             self.lookat.x = settings.size.x-local_client.x - scroll_offset
         end
+        
+        if local_client.y < -self.lookat.y + scroll_offset then
+            self.lookat.y = -local_client.y + scroll_offset
+        elseif local_client.y > settings.size.y - self.lookat.y - scroll_offset then
+            self.lookat.y = settings.size.y-local_client.y - scroll_offset
+        end
+            
         
     end
     
@@ -300,14 +327,14 @@ function new_client(name, is_remote)
 	client = { is_remote = is_remote, name = name}
 	client.img = love.graphics.newImage("d.75.jpg")
 	
-  local w = client.img:getWidth()
-  local h = client.img:getHeight()
-  client.properties = {velocity_limit = 500, x_force = 250, y_impulse = 50}
-  client.body = love.physics.newBody(world, 0, 20,4)
-  client.shape = love.physics.newRectangleShape(client.body,0,0, w, h)
-  client.body:setAngularDamping(0.5)
-  --client.body:setLinearDamping(0.5)
-  in_air = false
+        local w = client.img:getWidth()
+        local h = client.img:getHeight()
+        client.properties = {velocity_limit = 500, x_force = 250, y_impulse = 50}
+        client.body = love.physics.newBody(world, 0, 20,4)
+        client.shape = love.physics.newRectangleShape(client.body,0,0, w, h)
+        client.body:setAngularDamping(0.5)
+        --client.body:setLinearDamping(0.5)
+        in_air = false
         
 	-- metatable
 	mt = {}
@@ -324,6 +351,11 @@ function new_client(name, is_remote)
 	client.synced_vars = {x = new_syncvar(0),
 	                      y = new_syncvar(0)}
 	
+        function client:quit()
+            data = {msg = 'RemoveClient', id = local_id}
+	    netclient:send(lube.bin:pack(data))
+        end
+        
 	-- sync variables via LUBE
 	function client:sync_vars(dt)
 	  for i,v in pairs(self.synced_vars) do
@@ -339,15 +371,15 @@ function new_client(name, is_remote)
 	
 	-- update client
 	function client:update(dt)
-	  if self.is_remote then
-	    self.body:setX(self.x)
-	    self.body:setY(self.y)
-    else
-      self.x = self.body:getX()
-      self.y = self.body:getY()
-      self:sync_vars(dt)
-      self:move()
-    end
+            if self.is_remote then
+              self.body:setX(self.x)
+              self.body:setY(self.y)
+            else
+              self.x = self.body:getX()
+              self.y = self.body:getY()
+              self:sync_vars(dt)
+              self:move()
+            end
 	end
 	
 	-- draw client
@@ -370,6 +402,11 @@ function new_client(name, is_remote)
         function client:move()
                 x,y = self.body:getWorldCenter()
                 v_x, v_y = self.body:getLinearVelocity()
+                
+                if love.keyboard.isDown("escape") then
+                    self.quit()
+                    love.event.push("q")
+                end
                 
                 if love.keyboard.isDown("left") then
                     if v_x > -self.properties.velocity_limit then
