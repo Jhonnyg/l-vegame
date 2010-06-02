@@ -153,6 +153,10 @@ end
 
 -------------------------------------------------------------------------
 -- Joint Client & Server functions
+function game.init()
+  love.keyboard.setKeyRepeat(1, 1)
+end
+
 function game.preload()
 	love.keyboard.setKeyRepeat(1)
   settings = { size = vec2(800,600), fullscreen = false, worldsize = vec2(2000,2000)}
