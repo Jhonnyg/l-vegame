@@ -48,55 +48,55 @@ function new_camera()
 end
 
 function love.load()
-	love.keyboard.setKeyRepeat(1)
-  settings = { size = vec2(800,600), fullscreen = false, worldsize = vec2(2000,2000)}
-
-	-- Set the background color to soothing pink.
-  love.graphics.setMode(settings.size.x, settings.size.y, settings.fullscreen, true, 0)
-	love.graphics.setBackgroundColor(0xff, 0xf1, 0xf7)
-	
-	love.graphics.setColor(255, 255, 255, 200)
-	font = love.graphics.newFont(love._vera_ttf, 10)
-	love.graphics.setFont(font)
-	
-  --------------
-  world = love.physics.newWorld(settings.worldsize.x, settings.worldsize.x)
-  world:setGravity(0, 700)
+        love.keyboard.setKeyRepeat(1)
+        settings = { size = vec2(800,600), fullscreen = false, worldsize = vec2(2000,2000)}
+        
+        -- Set the background color to soothing pink.
+        love.graphics.setMode(settings.size.x, settings.size.y, settings.fullscreen, true, 0)
+        love.graphics.setBackgroundColor(0xff, 0xf1, 0xf7)
+        
+        love.graphics.setColor(255, 255, 255, 200)
+        font = love.graphics.newFont(love._vera_ttf, 10)
+        love.graphics.setFont(font)
+        
+        --------------
+        world = love.physics.newWorld(settings.worldsize.x, settings.worldsize.x)
+        world:setGravity(0, 700)
+        
+        -- create scenery
+        scene_objects = {}
+        addbox(200,200,75,75)
+        addbox(50,settings.size.y-90,75,75)
+        addbox(settings.size.x/2,settings.size.y-15,settings.size.x*5,15)
+        --------------
+        camera = new_camera()
   
-  -- create scenery
-  scene_objects = {}
-  addbox(200,200,75,75)
-  addbox(50,settings.size.y-90,75,75)
-  addbox(settings.size.x/2,settings.size.y-15,settings.size.x*5,15)
-	--------------
-	camera = new_camera()
   
-  
-  --------------
-  -- Networking
-  netserver = nil
-  netclient = nil
-  if is_server then
-    netserver = lube.server(4632)
-    netserver:setCallback(server_messages, server_connect, server_disconnect)
-    netserver:setHandshake("Pooper")
-    --netserver:startserver(4632)
-    print("Started server...")
-  else
-    netclient = lube.client()
-    netclient:setCallback(client_messages)
-    netclient:setHandshake("Pooper")
-    print("Started client: " .. tostring(netclient:connect("127.0.0.1", 4632, true)))
-    netclient:send(lube.bin:pack({GetUID = 1}))
-  end
-  
-  --------------
-  client_uid = 0
-  remote_clients = {}
-  local_client = new_client("d.75.jpg")
-
-  clients = {}
-  --clients[1] = new_client("d.75.jpg")
+        --------------
+        -- Networking
+        netserver = nil
+        netclient = nil
+        if is_server then
+          netserver = lube.server(4632)
+          netserver:setCallback(server_messages, server_connect, server_disconnect)
+          netserver:setHandshake("Pooper")
+          --netserver:startserver(4632)
+          print("Started server...")
+        else
+          netclient = lube.client()
+          netclient:setCallback(client_messages)
+          netclient:setHandshake("Pooper")
+          print("Started client: " .. tostring(netclient:connect("127.0.0.1", 4632, true)))
+          netclient:send(lube.bin:pack({GetUID = 1}))
+        end
+        
+        --------------
+        client_uid = 0
+        remote_clients = {}
+        local_client = new_client("d.75.jpg")
+      
+        clients = {}
+        --clients[1] = new_client("d.75.jpg")
 end
 
 function addbox(x,y,w,h)
