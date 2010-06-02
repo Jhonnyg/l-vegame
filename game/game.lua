@@ -28,7 +28,7 @@ function server_messages(data_in, id)
       else
         netserver:send(lube.bin:pack({msg = 'NewUIDLocal', id = client_uid, ip = netserver.clients[id][1]}), i) -- Notify the new client of his own id
         for tuid = 1,(client_uid-1) do
-          netserver:send(lube.bin:pack({msg = 'NewUID', id = tuid, ip = netserver.clients[id][1]}), i) -- Notify the new client of all other/previous clients
+          netserver:send(lube.bin:pack({msg = 'NewUID', id = tuid, ip = netserver.clients[tuid][1]}), i) -- Notify the new client of all other/previous clients
         end
       end
     end
