@@ -106,6 +106,16 @@ function server_messages(data_in, id)
         netserver:send(data_in, i)
       end
     end
+    
+  elseif msg == "ClientInput" then
+    -- Handle input sent from clients
+    if (id == local_id) then
+      -- input from remote clients
+      local_client:handle_input(data.input)
+    else
+      -- input from our own client
+      remote_clients[id]:handle_input(data.input)
+    end
   end
 end
 
@@ -134,14 +144,14 @@ function client_messages(data)
     -- A new client has connected (remote)
     -- create a client object for it
     add_log("New remote player (id = " .. tostring(data.id) .. ", ip = " .. tostring(data.ip) .. ", is_host = " .. tostring(data.is_host) .. ").")
-    remote_clients[data.id] = new_client(data.ip, true, data.is_host)
+    remote_clients[data.id] = new_client(data.ip, data.id, true, data.is_host)
     
   elseif msg == "NewUIDLocal" then
     -- We are the new client that has been connected
     -- create a client object for it
     add_log("Connected to server as new player (id = " .. tostring(data.id) .. ", ip = " .. tostring(data.ip) .. ", is_host = " .. tostring(data.is_host) .. ").")
     local_id = data.id
-    local_client = new_client(data.ip, false, data.is_host)
+    local_client = new_client(data.ip, data.id, false, data.is_host)
     
   elseif msg == "SyncVar" then
     
@@ -155,6 +165,8 @@ function client_messages(data)
     --print("Client needs to sync var: " .. t_dvar(varid) .. " with value: " .. t_dvar(val) .. " for client: " .. t_dvar(clientid))
     if remote_clients[clientid] then
       remote_clients[clientid][varid] = val
+    elseif clientid == local_id then
+      local_client[varid] = val
     else
       print("No remote client with that id")
     end
@@ -328,7 +340,7 @@ function game.draw()
         -- Debug print
         love.graphics.setColor(0,0,0)
         love.graphics.translate(-camera.lookat.x,-camera.lookat.y)
-        --love.graphics.print("camera lookat (" .. camera.lookat.x .. " , " .. camera.lookat.y  .. ")",200,200)
+        love.graphics.print("camera lookat (" .. camera.lookat.x .. " , " .. camera.lookat.y  .. ")",200,200)
         print_log()
         
 end
@@ -353,24 +365,29 @@ function new_syncvar(value)
 end
 
 
-function new_client(name, is_remote, is_host)
-	client = { is_remote = is_remote, name = name, is_host = is_host }
+function new_client(name, client_id, is_remote, is_host)
+	client = { id = client_id, is_remote = is_remote, name = name, is_host = is_host }
 	client.img = love.graphics.newImage("d.75.jpg")
 	
   local w = client.img:getWidth()
   local h = client.img:getHeight()
   client.properties = {velocity_limit = 500, x_force = 250, y_impulse = 50}
-  client.body = love.physics.newBody(world, 0, 20,4)
-  client.shape = love.physics.newRectangleShape(client.body,0,0, w, h)
-  client.body:setAngularDamping(0.5)
-  --client.body:setLinearDamping(0.5)
-  in_air = false
+  
+  -- only add physics if we are the server
+  if is_server then
+    client.body = love.physics.newBody(world, 0, 20,4)
+    client.shape = love.physics.newRectangleShape(client.body,0,0, w, h)
+    client.body:setAngularDamping(0.5)
+    --client.body:setLinearDamping(0.5)
+    in_air = false
+  end
         
 	-- metatable
 	mt = {}
 	function mt:__index(id)
 		return self.synced_vars[id].value
 	end
+	
 	function mt:__newindex(id, val)
 		self.synced_vars[id].dirty = true
 		self.synced_vars[id].value = val
@@ -382,7 +399,7 @@ function new_client(name, is_remote, is_host)
 	                      y = new_syncvar(0)}
 	
   function client:clean_quit()
-    data = {msg = "ClientDisconnect", id = local_id, reason = "Player left game."}
+    data = {msg = "ClientDisconnect", id = self.id, reason = "Player left game."}
     netclient:send(lube.bin:pack(data))
   end
         
@@ -391,7 +408,7 @@ function new_client(name, is_remote, is_host)
 	  for i,v in pairs(self.synced_vars) do
 	    if v.dirty then
 	      -- var is dirty, sync it!
-	      data = {msg = 'SyncVar', id = local_id, var = i, value = v.value}
+	      data = {msg = 'SyncVar', id = self.id, var = i, value = v.value}
 	      netclient:send(lube.bin:pack(data))
 	      
 	      v.dirty = false
@@ -401,7 +418,7 @@ function new_client(name, is_remote, is_host)
 	
 	-- update client
 	function client:update(dt)
-    if self.is_remote then
+    --[[if self.is_remote then
       self.body:setX(self.x)
       self.body:setY(self.y)
     else
@@ -417,6 +434,26 @@ function new_client(name, is_remote, is_host)
       
       self:sync_vars(dt)
       self:move()
+    end]]
+    
+    -- only the server should update positions etc
+    if is_server then
+      local x = self.body:getX()
+      local y = self.body:getY()
+      if not (x == self.x) then
+        self.x = x
+      end
+      
+      if not (y == self.y) then
+        self.y = y
+      end
+      
+      self:sync_vars(dt)
+    end
+    
+    -- if this is the local client, update movement via input
+    if not self.is_remote then
+      self:move()
     end
 	end
 	
@@ -428,7 +465,9 @@ function new_client(name, is_remote, is_host)
     
     -- draw bounding box
     love.graphics.setColor(0,0,0)
-    love.graphics.polygon("line", self.shape:getPoints())
+    if is_server then
+      love.graphics.polygon("line", self.shape:getPoints())
+    end
     
     -- Draw name
     local nameoffset = -50
@@ -442,26 +481,41 @@ function new_client(name, is_remote, is_host)
 	end
         
   function client:move()
-    x,y = self.body:getWorldCenter()
-    v_x, v_y = self.body:getLinearVelocity()
-
     -- TODO: This should be moved to game.keypushed or something like that (ie. to a state action/function).
     if love.keyboard.isDown("escape") then
         self:clean_quit()
         love.event.push("q")
     end
-
+    
     if love.keyboard.isDown("left") then
+        netclient:send(lube.bin:pack({msg = "ClientInput", input = "left"}))
+    end
+    
+    if love.keyboard.isDown("right") then
+        netclient:send(lube.bin:pack({msg = "ClientInput", input = "right"}))
+    end
+    
+    if love.keyboard.isDown("up") then
+        netclient:send(lube.bin:pack({msg = "ClientInput", input = "up"}))
+    end
+    
+  end
+  
+  function client:handle_input(input)
+    x,y = self.body:getWorldCenter()
+    v_x, v_y = self.body:getLinearVelocity()
+
+    if input == "left" then
         if v_x > -self.properties.velocity_limit then
             self.body:applyForce(-self.properties.x_force,0,x,y)
         end
     end
-    if love.keyboard.isDown("right") then
+    if input == "right" then
         if v_x < self.properties.velocity_limit then
             self.body:applyForce(self.properties.x_force,0,x,y)
         end
     end
-    if love.keyboard.isDown("up") then
+    if input == "up" then
         if v_y < self.properties.velocity_limit then
             epsilon = 0.015
             if v_y == 0 then
@@ -473,10 +527,6 @@ function new_client(name, is_remote, is_host)
                 self.body:applyImpulse(0,-self.properties.y_impulse,x,y)
             end
         end
-    end
-
-    if love.keyboard.isDown(" ") then
-    
     end
   end
 	
