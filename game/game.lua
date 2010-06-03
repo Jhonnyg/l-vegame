@@ -35,6 +35,9 @@ function add_log(msg)
     debug_log.count = debug_log.max
   end
   debug_log[debug_log.count] = msg
+  
+  -- output to stdout also
+  print(msg)
 end
 
 function print_log()
@@ -161,12 +164,13 @@ function client_messages(data)
     -- syncvar id and value
     varid = data.var
     val = data.value
+    packid = data.packid
     
     --print("Client needs to sync var: " .. t_dvar(varid) .. " with value: " .. t_dvar(val) .. " for client: " .. t_dvar(clientid))
     if remote_clients[clientid] then
-      remote_clients[clientid][varid] = val
+      remote_clients[clientid]:update_syncvar(varid, val, packid)--[varid] = val
     elseif clientid == local_id then
-      local_client[varid] = val
+      local_client:update_syncvar(varid, val, packid)--[varid] = val
     else
       print("No remote client with that id")
     end
@@ -360,7 +364,7 @@ end]]
 -------------------------------------------------------------------------
 -- Classes
 function new_syncvar(value)
-	var = {value = value, dirty = false}
+	var = {value = value, dirty = false, packid = 0}
 	return var
 end
 
@@ -397,6 +401,15 @@ function new_client(name, client_id, is_remote, is_host)
 	-- variables that should be synced via the network
 	client.synced_vars = {x = new_syncvar(0),
 	                      y = new_syncvar(0)}
+	                      
+	function client:update_syncvar(id, val, packid)
+	  if packid > self.synced_vars[id].packid then
+	    self.synced_vars[id].value = val
+	    self.synced_vars[id].packid = packid
+    else
+      add_log("Got old sync data! (packid = " .. tostring(packid) .. " compared to " .. tostring(self.synced_vars[id].packid) .. ")")
+    end
+  end
 	
   function client:clean_quit()
     data = {msg = "ClientDisconnect", id = self.id, reason = "Player left game."}
@@ -408,7 +421,8 @@ function new_client(name, client_id, is_remote, is_host)
 	  for i,v in pairs(self.synced_vars) do
 	    if v.dirty then
 	      -- var is dirty, sync it!
-	      data = {msg = 'SyncVar', id = self.id, var = i, value = v.value}
+	      self.synced_vars[i].packid = self.synced_vars[i].packid + 1
+	      data = {msg = 'SyncVar', id = self.id, var = i, value = v.value, packid = self.synced_vars[i].packid}
 	      netclient:send(lube.bin:pack(data))
 	      
 	      v.dirty = false
@@ -418,24 +432,6 @@ function new_client(name, client_id, is_remote, is_host)
 	
 	-- update client
 	function client:update(dt)
-    --[[if self.is_remote then
-      self.body:setX(self.x)
-      self.body:setY(self.y)
-    else
-      local x = self.body:getX()
-      local y = self.body:getY()
-      if not (x == self.x) then
-        self.x = x
-      end
-      
-      if not (y == self.y) then
-        self.y = y
-      end
-      
-      self:sync_vars(dt)
-      self:move()
-    end]]
-    
     -- only the server should update positions etc
     if is_server then
       local x = self.body:getX()
