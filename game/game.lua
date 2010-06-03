@@ -3,6 +3,9 @@ require "LUBE.lua"
 game = {}
 
 is_server = false
+ping_timeout = 10
+
+
 
 -------------------------------------------------------------------------
 -- Debugging helpers
@@ -14,11 +17,41 @@ function vec2(x,y)
   return {x = x, y = y}
 end
 
+debug_log = {}
+debug_log.count = 0
+debug_log.max = 10
+
+function add_log(msg)
+  -- shift back old
+  for i = 1,(debug_log.count-1) do
+    if (debug_log[i + 1]) then
+      debug_log[i] = debug_log[i + 1]
+    end
+  end
+  
+  -- add new msg
+  debug_log.count = debug_log.count + 1
+  if (debug_log.count > debug_log.max) then
+    debug_log.count = debug_log.max
+  end
+  debug_log[debug_log.count] = msg
+end
+
+function print_log()
+  for i = 1,(debug_log.count) do
+    if debug_log[i] then
+      love.graphics.print(debug_log[i], 5, 5 + i * 8)
+    end
+  end
+end
+
 -------------------------------------------------------------------------
 -- Callback functions for LUBE
 function server_messages(data_in, id)
   data = lube.bin:unpack(data_in)
   msg = data.msg
+  
+  --print("Number of active clients: " .. tostring(netserver:number_of_clients()))
   
   if msg == "GetUID" then
     
@@ -26,18 +59,18 @@ function server_messages(data_in, id)
     
     for i,v in pairs(netserver.clients) do
       if not (i == id) then
-        netserver:send(lube.bin:pack({msg = 'NewUID', id = client_uid, ip = netserver.clients[id][1]}), i) -- Notify all other clients that a new client has connected
+        netserver:send(lube.bin:pack({msg = 'NewUID', id = client_uid, ip = netserver.clients[id][1], is_host = data.is_host}), i) -- Notify all other clients that a new client has connected
       else
-        netserver:send(lube.bin:pack({msg = 'NewUIDLocal', id = client_uid, ip = netserver.clients[id][1]}), i) -- Notify the new client of his own id
+        netserver:send(lube.bin:pack({msg = 'NewUIDLocal', id = client_uid, ip = netserver.clients[id][1], is_host = data.is_host}), i) -- Notify the new client of his own id
         --for tuid = 1,(client_uid-1) do
         for tuid,tval in pairs(server_data.clients) do
-          netserver:send(lube.bin:pack({msg = 'NewUID', id = tuid, ip = tval.ip}), i) -- Notify the new client of all other/previous clients
+          netserver:send(lube.bin:pack({msg = 'NewUID', id = tuid, ip = tval.ip, is_host = tval.is_host}), i) -- Notify the new client of all other/previous clients
         end
       end
     end
     
     -- add client info to server data
-    server_data.clients[client_uid] = {ip = netserver.clients[id][1]}
+    server_data.clients[client_uid] = {ip = netserver.clients[id][1], is_host = data.is_host}
     
     --client_uid = client_uid + 1
   elseif msg == "ClientDisconnect" then
@@ -45,6 +78,7 @@ function server_messages(data_in, id)
     
     -- send notification to all users that client with id has left
     server_data.clients[clientid] = nil
+    netserver.clients[clientid] = nil
 
     for i,v in pairs(server_data.clients) do
       netserver:send(data_in, i)
@@ -99,15 +133,15 @@ function client_messages(data)
   if msg == "NewUID" then
     -- A new client has connected (remote)
     -- create a client object for it
-    print("New remote player (id = " .. tostring(data.id) .. ", ip = " .. tostring(data.ip) .. ").")
-    remote_clients[data.id] = new_client(data.ip, true)
+    add_log("New remote player (id = " .. tostring(data.id) .. ", ip = " .. tostring(data.ip) .. ", is_host = " .. tostring(data.is_host) .. ").")
+    remote_clients[data.id] = new_client(data.ip, true, data.is_host)
     
   elseif msg == "NewUIDLocal" then
     -- We are the new client that has been connected
     -- create a client object for it
-    print("Connected to server as new player (id = " .. tostring(data.id) .. ", ip = " .. tostring(data.ip) .. ").")
+    add_log("Connected to server as new player (id = " .. tostring(data.id) .. ", ip = " .. tostring(data.ip) .. ", is_host = " .. tostring(data.is_host) .. ").")
     local_id = data.id
-    local_client = new_client(data.ip, false)
+    local_client = new_client(data.ip, false, data.is_host)
     
   elseif msg == "SyncVar" then
     
@@ -126,28 +160,29 @@ function client_messages(data)
     end
     
   elseif msg == "ClientDisconnect" then
-    print("A client has disconnected (id = " .. tostring(data.id) .. " reason = " .. tostring(data.reason) .. ")")
+    add_log("A client has disconnected (id = " .. tostring(data.id) .. " reason = " .. tostring(data.reason) .. ")")
     
     -- Remove client from our list of remote clients
-    disconnect_remote_client(data.id)
+    client_disconnected(data.id)
   end
 end
 
 -------------------------------------------------------------------------
 -- Client functions
 function game.join_server(ip)
-  is_server = false
+  --is_server = false
   netclient = lube.client()
   netclient:setCallback(client_messages)
   netclient:setHandshake("Pooper")
-  netclient:setPing(true, 3, "hello")
+  netclient:setPing(true, ping_timeout, "hello")
   print("Started client: " .. tostring(netclient:connect(ip, 4632, true)))
   
   -- pack and send UID request
-  netclient:send(lube.bin:pack({msg = 'GetUID'}))
+  netclient:send(lube.bin:pack({msg = 'GetUID', is_host = is_server}))
 end
 
-function disconnect_remote_client(id)
+-- Called when a client disconnects
+function client_disconnected(id)
   if remote_clients[id] then
     remote_clients[id].body = nil
   end
@@ -185,15 +220,16 @@ server_data = {}
 server_data.clients = {}
 
 function game.start_server()
+  is_server = true
   netserver = lube.server(4632)
   netserver:setCallback(server_messages, server_connect, server_disconnect)
   netserver:setHandshake("Pooper")
-  netserver:setPing(true, 3, "hello")
+  netserver:setPing(true, ping_timeout, "hello")
   print("Started server...")
   
   -- Join new local server
   game.join_server("localhost")
-  is_server = true
+  
 end
 
 function addbox(x,y,w,h)
@@ -288,9 +324,13 @@ function game.draw()
           v:draw()
         end
         
+        
+        -- Debug print
         love.graphics.setColor(0,0,0)
         love.graphics.translate(-camera.lookat.x,-camera.lookat.y)
-        love.graphics.print("camera lookat (" .. camera.lookat.x .. " , " .. camera.lookat.y  .. ")",200,200)
+        --love.graphics.print("camera lookat (" .. camera.lookat.x .. " , " .. camera.lookat.y  .. ")",200,200)
+        print_log()
+        
 end
 
 --[[
@@ -313,8 +353,8 @@ function new_syncvar(value)
 end
 
 
-function new_client(name, is_remote)
-	client = { is_remote = is_remote, name = name}
+function new_client(name, is_remote, is_host)
+	client = { is_remote = is_remote, name = name, is_host = is_host }
 	client.img = love.graphics.newImage("d.75.jpg")
 	
   local w = client.img:getWidth()
@@ -392,9 +432,13 @@ function new_client(name, is_remote)
     
     -- Draw name
     local nameoffset = -50
-    love.graphics.print(self.name, self.x+1, self.y+1+nameoffset)
+    local rendername = self.name
+    if self.is_host then
+      rendername = rendername .. " (HOST)"
+    end
+    love.graphics.print(rendername, self.x+1, self.y+1+nameoffset)
     love.graphics.setColor(255,255,255)
-    love.graphics.print(self.name, self.x, self.y+nameoffset)
+    love.graphics.print(rendername, self.x, self.y+nameoffset)
 	end
         
   function client:move()

@@ -433,6 +433,16 @@ function lube.server.udp:startserver(port)
 	self.socket:setsockname("*", port)
 end
 
+function lube.server.udp:number_of_clients()
+  c = 0
+  for i,v in pairs(self.clients) do
+    if not (v == nil) then
+      c = c + 1
+    end
+  end
+  return c
+end
+
 function lube.server.tcp:receive()
 	for i, v in pairs(self.clientsocks) do
 		local data = v:receive()

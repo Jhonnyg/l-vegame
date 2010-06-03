@@ -60,9 +60,9 @@ function menu.preload()
 
     -- Label
     love.graphics.setColor(0x11, 0x11, 0x11)
-  	love.graphics.print(label, x + w / 2 - #label * 3 + 1, y + h / 2 + 3 + 1)
+  	love.graphics.print(label, x + w / 2 - #label * 3.5 + 1, y + h / 2 + 3 + 1)
   	love.graphics.setColor(0xee, 0xee, 0xee)
-  	love.graphics.print(label, x + w / 2 - #label * 3, y + h / 2 + 3)
+  	love.graphics.print(label, x + w / 2 - #label * 3.5, y + h / 2 + 3)
   end
   
   look.input.topleft = love.graphics.newQuad(0, 0, 5, 5, 256, 256)
@@ -106,9 +106,9 @@ function menu.preload()
   -- Setup menu widgets
 	widgets = {}
 	widgets['quit'] = new_button(10, 10, 80, 24, "Quit", function () love.event.push("q") end )
-	widgets['start_server'] = new_button(300, 200, 100, 24, "Start server", menu.action.start_server )
-	widgets['serverip'] = new_input(300, 300, 200, "localhost", function () menu.action.join_server(widgets.serverip.value) end )
-	widgets['join_server'] = new_button(300, 340, 100, 24, "Join server", function () menu.action.join_server(widgets.serverip.value) end )
+	widgets['start_server'] = new_button(300, 260, 150, 24, "Start server", menu.action.start_server )
+	widgets['serverip'] = new_input(220, 300, 200, "localhost", function () menu.action.join_server(widgets.serverip.value) end )
+	widgets['join_server'] = new_button(425, 298, 120, 24, "Join server", function () menu.action.join_server(widgets.serverip.value) end )
 	
 	-- general GUI state holders
 	hover = 0 -- id of current widget the mouse is hovering (0 = none)
